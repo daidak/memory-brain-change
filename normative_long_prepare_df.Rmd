@@ -1,0 +1,147 @@
+---
+title: "p039_normative_long_prepare_df"
+author: "DVP"
+date: "2022.12.12"
+output: html_document
+---
+
+# Fetch neuroimaging data, and link with main data.files
+### This script will populate rawdatafiles with 1) csv file linking available mri data with existing tables; 2) will import fs derivatives of interest in the folder
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(here)
+library(rio)
+
+#here()
+source(here("scripts/normative_scripts/helper_normative_long_prepare_df.r"))
+mrifiles = c("lh.aparc.a2009s.area.txt",
+             "lh.aparc.a2009s.thickness.txt",
+             "lh.aparc.a2009s.volume.txt",
+             "rh.aparc.a2009s.area.txt",
+             "rh.aparc.a2009s.thickness.txt",
+             "rh.aparc.a2009s.volume.txt",
+             "aseg.txt")
+```
+
+## This R Markdown will fetch neuroimaging data and neuroimaging summary tables and save them in the site folder. 
+### Fetch neuroimaging data for uio.
+```{r LCBC}
+## set up links
+set_links("uio")
+
+# link tab data with fs images
+check.uio.fs(sitedir, outdir, mrifiles)
+```
+
+
+### Fetch neuroimaging data for mpib
+```{r MPIB}
+## set up links  
+set_links("mpib")
+
+# link to mpib data
+check.mpib.fs(sitedir, outdir, mrifiles)
+```
+
+
+### Fetch neuroimaging data for umu
+```{r Umu_Betula}
+## set up links  
+set_links("umu")
+
+# link to umu data
+check.umu.fs(sitedir, outdir, mrifiles)
+
+# 78 cogn. data missing
+# 61 mri missing 
+```
+
+### Fetch neuroimaging data for ub.
+```{r UB}
+## set up links  
+set_links("ub")
+
+# link to umu data
+check.ub.fs(sitedir, outdir, mrifiles)
+```
+
+
+### Fetch neuroimaging data for habs.
+```{r habs}
+## set up links  
+set_links("habs")
+
+# link to habs data
+check.habs.fs(sitedir, outdir, mrifiles)
+```
+
+### Fetch neuroimaging data for cognorm / ous
+```{r cognorm / ous}
+set_links("ous")
+
+# link to uos data
+check.ous.fs(sitedir, outdir, mrifiles)
+```
+
+### Fetch neuroimaging data for aibl.
+```{r aibl}
+set_links("aibl")
+
+# link to uio data
+check.aibl.fs(sitedir, outdir, mrifiles)
+```
+
+
+### Fetch neuroimaging data for adni.
+```{r adni}
+set_links("adni")
+
+# link to uio data
+check.adni.fs(sitedir, outdir, mrifiles)
+```
+
+
+### Fetch neuroimaging data for preventAD.
+```{r preventAD}
+set_links("preventad")
+
+# link to preventad data data
+check.preventad.fs(sitedir, outdir, mrifiles)
+```
+
+### Fetch neuroimaging data for oasis3.
+```{r oasis3}
+set_links("oasis3")
+
+# link to oasis data
+check.oasis.fs(sitedir, outdir, mrifiles)
+```
+
+
+### Fetch neuroimaging data for bbhi.
+```{r bbhi}
+set_links("bbhi")
+
+# link to bbhi data
+check.bbhi.fs(sitedir, outdir, mrifiles)
+```
+
+
+### Fetch neuroimaging data for ukb.
+```{r ukb}
+set_links("ukb")
+
+# link to uio data
+check.ukb.fs(sitedir, outdir, mrifiles)
+```
+
+
+
+### Fetch neuroimaging data for vetsa
+```{r vetsa}
+set_links("vetsa")
+
+# link to wayne data
+check.vetsa.fs(sitedir, outdir, mrifiles)
+```

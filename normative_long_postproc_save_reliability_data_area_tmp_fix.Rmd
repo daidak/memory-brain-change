@@ -1,0 +1,279 @@
+---
+title: "p039_normative_long_post_save_reliability_data"
+author: "DVP"
+date: "2022.12.12"
+output: html_document
+---
+
+# copute reliability for aseg + destrieux ROIs 
+save within subject change in the slopes from multi cohort dataset
+save error from s2c
+
+# specify folders and files
+## setup
+```{r setupp}
+#knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(here)
+library(rio)
+
+# set directories
+options(bitmapType = "cairo")
+outdir=here('data_normative_long/df_mri/all')
+s2dir = here("data_flair/s2c")
+reliabilitydir = file.path(outdir, "reliability")
+errordir = file.path(reliabilitydir, "error")
+wsdir = file.path(reliabilitydir, "ws")
+scriptsdir = here("scripts")
+```
+
+## set name to common files
+```{r common files}
+df.harmonize = import(file.path(outdir, 'harmonize_variables.xlsx'))
+sex.rename = import(file.path(outdir, 'harmonize_variables.xlsx'), sheet = "sex")
+phenotypes.s2c = phenotypes.gamm = df.harmonize$normative_modelling[7:dim(df.harmonize)[1]]
+phenotypes.s2c[grepl("Thalamus", phenotypes.s2c)] = c("Left-Thalamus" , "Right-Thalamus")
+phenotypes.s2c = gsub("&", "_and_", phenotypes.s2c)
+
+load(file.path(outdir, "df.all.filt.Rda"))
+model = "reliability/ws"
+```
+
+# get ws from multi-chohort dataset. 
+## extract ws from data
+```{r compute normative scores}
+scriptname =  here("scripts/normative_scripts/submit_compute_gamm_Zchange.sh")
+
+for (i in 1:length(phenotypes.gamm)) {
+  system(paste(
+    "module purge;",
+    "sbatch",
+     scriptname, 
+     outdir, 
+     model,
+     paste0("'",phenotypes.gamm[i],"'"),
+     sep = " "))
+}
+```
+
+## merge ws computational parameters from different regions
+```{r computational parameters}
+model_parameters = lapply(phenotypes.gamm, 
+                          function(x) {import(file.path(outdir, model, x,"model_parameters.csv"))})
+model_parameters = reduce(model_parameters, cbind) %>% 
+  t() %>% 
+  data.frame()
+names(model_parameters) = 
+  c("mean60",
+    "mean65",
+    "mean70",
+    "mean76",
+    "mean80",
+    "sd", 
+    "pct_60.80",
+    "pct_65.80",
+    "pct_70.80",
+    "fderiv_60.80",
+    "fderiv_70.80",
+    "var1", 
+    "var_2_2",
+    "var_4_3")
+model_parameters$features = phenotypes.gamm
+
+save(model_parameters, 
+          file = file.path(reliabilitydir, "full.sample.rda"))
+
+```
+
+
+# get error from s2c 
+## define functions s2c
+```{r define function desterieux}
+fetch_aparc_data_s2c = function(idir) {
+lfiles = list.files(idir, pattern = ".txt")
+subs = 
+  strsplit(lfiles,"sub-") %>% 
+  reduce(rbind) %>% 
+  .[,2] %>% 
+  substr(., 1,7) %>% 
+  unique()
+
+df.mri = lapply(lfiles, function(x) { import(file.path(idir, x))})
+for (df in 1:length(df.mri)) {
+  names(df.mri[[df]])[1] <- "input"
+}
+names(df.mri) = lfiles
+
+df.mri.all = list()
+for (i in 1:length(subs)) {
+  idx = lfiles[grep(subs[i], lfiles)]
+  x = df.mri[idx]
+  df.mri.all[[i]] = x %>% reduce(cbind)
+}
+names(df.mri.all) = subs
+df.mri = data.table::rbindlist(df.mri.all, idcol = "subs")
+return(df.mri)
+}
+
+work_with_residuals = function(db) {
+  x = 
+      db %>% 
+        group_by(subs) %>% 
+        mutate(n = n_distinct(input)) %>% 
+        filter(n > 1)  %>% 
+    pivot_longer(-c(subs, input), 
+                      names_to = "features", 
+                      values_to = "values") %>% 
+    mutate(sess = gsub("ses-0", "", input), 
+           sess = gsub(".long.base", "", sess),
+           sess = as.numeric(sess)) %>% 
+    arrange(subs,sess)
+  
+  
+  mod =
+  x %>% 
+    group_by(subs, features) %>% 
+    mutate(ref = first(values),
+           sesref = first(sess),
+           errM = values - ref) %>% 
+    filter(!sesref == sess) %>% 
+    mutate(pct.err = 100* errM / ref)
+  
+  
+  mod = mod %>%
+  mutate(pctM = median(abs(pct.err), na.rm = T),
+         pctmad = mad(abs(pct.err), na.rm = T), 
+         abspcterr = if_else(abs(pct.err) > pctM +  8*pctmad,NaN,abs(pct.err)))
+  
+  mod.sum.RID = 
+    mod %>% 
+    group_by(subs, features) %>% 
+    summarise(pct.err.mean = mean(abspcterr, na.rm = T),
+              meanV =  mean(ref, na.rm = T))
+  
+  mod.sum = 
+  mod %>% group_by(features) %>% 
+    summarise(pct.err.mean = mean(abspcterr, na.rm = T),
+              meanV = mean(ref), 
+              sdV = sd(ref))
+  
+  df.out = list()
+  df.out$mod = mod
+  df.out$mod.sum.rid = mod.sum.RID
+  df.out$mod.sum = mod.sum
+  return(df.out)
+}
+```
+
+
+## main routine for s2c
+```{r fetch data, echo=FALSE}
+df = list()
+df$df = fetch_aparc_data_s2c(here("data-raw/tabulated/s2c/mri_fs7_noflair"))
+df$df = df$df %>% 
+  select(unique(colnames(.)))
+df$mod = work_with_residuals(df$df)
+
+
+df.out = df$mod$mod.sum
+idx = match(phenotypes.s2c,df.out$features)
+df.out = df.out[idx, ]
+
+
+save(
+  df.out,
+  file = file.path(errordir, "s2c_data.rda"))
+```
+
+
+# Compute error variance
+## open data and merge
+```{r}
+# error
+load(file.path(errordir, "s2c_data.rda"))
+df.error = df.out
+
+
+#ws variance 
+load(file.path(reliabilitydir, "full.sample.rda"))
+df.ws = 
+  model_parameters %>% 
+    dplyr::select(features, 
+            var_4_3) %>% 
+  rename("seD" = "var_4_3")
+df.ws$features = phenotypes.s2c
+
+load(here("data_memory_long/all/brain_variance.rda"))
+df.variance = 
+  var_mri %>% 
+  pivot_longer(-dataset, 
+               names_to = "features", 
+               values_to = "variance")
+
+load(here("data_memory_long/all/brain_overview.rda"))
+df.dataset = 
+  y %>% 
+  rename(c("tp" = "mean_tp", 
+         "fu" = "mean_followup"))
+
+# merge datasets
+df = inner_join(df.error, df.ws)
+df = df %>%  filter(!grepl("_area", features))
+df = df %>% mutate(features = gsub("_thickness", "", features),
+                   features = gsub("Thalamus", "Thalamus-Proper", features),
+              features = gsub("MeanThickness", "MeanThickness_thickness", features),
+              features = gsub("3rd-Ventricle", "x3rd-ventricle", features),
+              features = gsub("4th-Ventricle", "x4th-ventricle", features),
+              features = gsub("Right-Cerebellum", "xRight-Cerebellum", features))
+
+
+df.variance = inner_join(df.variance, 
+                  df.dataset)
+df = inner_join(df, df.variance)
+save(df, 
+     file = file.path(reliabilitydir, "reliability_parameters.rda"))
+```
+
+
+## get icc and error variance based on formula
+  ws within-subject variability
+  # for equispaced timepoints
+   #e² / (t²*n*(n-1)/12*(n-1)
+   # e = error
+   # t = time
+   # n = number of timepoints
+
+  # bs = var(bs) = sd² = seD²
+  ICC(2,1) = bs² / bs² + ws^2 
+  in the context of long trajectories 
+  
+  Alternatively, if we did not know the error variance, but had reliability, 
+  we would do it this way:
+  reliability <- .8 # (I know that in this example: 1 / (1 + .5^2))
+  error_variance <- (1 - reliability) * var(w)
+  with this approach, the error variance is an estimate, and will change with the
+  data, but that's how it always is, except when I simulate and know the truth.
+  thus, the error_variance computed here will vary around its true value of 0.5^2,
+  if we change the random number seed above
+  
+## Save reliability parameters- subcortical thickness area  
+```{r}
+load(file.path(reliabilitydir, "reliability_parameters.rda"))
+
+df = 
+df %>% 
+  mutate(bs = seD^2, 
+         ws = pct.err.mean^2*((fu^2*tp*(tp+1))/ (12*(tp-1)))^-1, 
+         icc = bs /(ws + bs))
+
+df = 
+  df %>% 
+  mutate(error_variance = (1 - icc) * variance)
+
+df.features = 
+  df %>% group_by(features) %>% summarise(pct.err.mean = mean(pct.err.mean), seD = mean(seD))
+save(df,
+     df.features,
+     file = file.path(reliabilitydir, "reliability_parameters.rda"))
+```
+

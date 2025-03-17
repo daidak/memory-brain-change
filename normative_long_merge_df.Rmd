@@ -1,0 +1,519 @@
+---
+title: "p039_normative_long_merge_df"
+author: "DVP"
+date: "2022.12.12"
+output: html_document
+---
+
+# merge dataframe in single script. select train and test datasets. 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(here)
+library(rio)
+library(ggridges)
+
+options(bitmapType = "cairo")
+outdir=here('data_normative_long/df_mri/all')
+datadir=here('data_normative_long/df_mri')
+scriptsdir = here("scripts")
+brainchartsscripts = here("scripts/braincharts-master")
+source(here("scripts/normative_scripts/helper_normative_long_merge_df.r"))
+```
+
+```{r common files}
+df.merge = list()
+df.harmonize = import(file.path(outdir, 'harmonize_variables.xlsx'))
+sex.rename = import(file.path(outdir, 'harmonize_variables.xlsx'), sheet = "sex") 
+
+sites.ct = import(file.path(brainchartsscripts, "docs/site_ids_ct_82sites.txt"), header = F)
+sites.sa = import(file.path(brainchartsscripts, "docs/site_ids_sa_66sites.txt"), header = F)
+
+phenofiles = list.files(file.path(brainchartsscripts, "docs"), pattern = "phenot")
+phenotypes = lapply(phenofiles, function(x) {import(file.path(brainchartsscripts, "docs", x), header = F)})
+names(phenotypes) = phenofiles
+phenotypes  = data.table::rbindlist(phenotypes, idcol = "modality") %>% 
+  mutate(modality = gsub(".txt", "", modality))
+
+# load example file
+transferfiles = list.files(file.path(brainchartsscripts, "docs"), pattern = "OpenNeuro", full.names = T)
+transfer = lapply(transferfiles, import)
+df.exam= transfer[[1]]
+```
+
+## This R Markdown will merge neuroimaging date and prepare it for normative modelling. 
+### Fetch neuroimaging data for uio.
+```{r LCBC}
+## set up links
+site="uio"
+codesite = "10"
+
+df.out = set_links(site)
+
+# rename data and prepare for normative modelling
+df.merge[[site]] = prepare.uio.brainchart(df.out, site, codesite)
+```
+
+
+### Fetch neuroimaging data for mpib
+```{r MPIB}
+## set up links
+site="mpib"
+codesite = "12"
+
+df.out = set_links(site)
+
+
+# rename data and prepare for normative modelling
+df.merge[[site]] = prepare.mpib.brainchart(df.out, site, codesite)
+```
+
+
+### Fetch neuroimaging data for umu
+```{r Umu_Betula}
+## set up links
+site="umu"
+codesite = "13"
+
+df.out = set_links(site)
+
+
+# rename data and prepare for normative modelling
+df.merge[[site]] = prepare.umu.brainchart(df.out, site, codesite)
+```
+
+### Fetch neuroimaging data for ub.
+```{r UB}
+## set up links
+site="ub"
+codesite = "14"
+
+df.out = set_links(site)
+
+
+# rename data and prepare for normative modelling
+df.merge[[site]] = prepare.ub.brainchart(df.out, site, codesite)
+```
+
+
+### Fetch neuroimaging data for bbhi.
+```{r bbhi}
+## set up links
+site="bbhi"
+codesite = "16"
+
+df.out = set_links(site)
+
+
+# rename data and prepare for normative modelling
+df.merge[[site]] = prepare.bbhi.brainchart(df.out, site, codesite)
+```
+
+
+### Fetch neuroimaging data for habs.
+```{r habs}
+## set up links
+site="habs"
+codesite = "20"
+
+df.out = set_links(site)
+
+
+# rename data and prepare for normative modelling
+df.merge[[site]] = prepare.habs.brainchart(df.out, site, codesite)
+```
+
+### Fetch neuroimaging data for cognorm / ous
+```{r cognorm / ous}
+## set up links
+site="ous"
+codesite = "30"
+
+df.out = set_links(site)
+
+
+# rename data and prepare for normative modelling
+df.merge[[site]] = prepare.ous.brainchart(df.out, site, codesite)
+```
+
+### Fetch neuroimaging data for aibl.
+```{r aibl}
+## set up links
+site="aibl"
+codesite = "21"
+
+df.out = set_links(site)
+
+
+# rename data and prepare for normative modelling
+df.merge[[site]] = prepare.aibl.brainchart(df.out, site, codesite)
+```
+
+
+### Fetch neuroimaging data for adni.
+```{r adni}
+## set up links
+site="adni"
+codesite = "22"
+
+df.out = set_links(site)
+
+
+# rename data and prepare for normative modelling
+df.merge[[site]] = prepare.adni.brainchart(df.out, site, codesite)
+```
+
+
+### Fetch neuroimaging data for preventAD.
+```{r preventAD}
+## set up links
+site="preventad"
+codesite = "23"
+
+df.out = set_links(site)
+
+
+# rename data and prepare for normative modelling
+df.merge[[site]] = prepare.preventad.brainchart(df.out, site, codesite)
+```
+
+
+### Fetch neuroimaging data for oasis.
+```{r oasis}
+site = "oasis3"
+codesite = "25"
+
+df.out = set_links(site)
+
+# rename data and prepare for normative modelling
+df.merge[[site]] = prepare.oasis3.brainchart(df.out, site, codesite)
+```
+
+
+### Fetch neuroimaging data for ukb.
+```{r ukb}
+## set up links
+site="ukb"
+codesite = "31"
+
+df.out = set_links(site)
+
+# rename data and prepare for normative modelling
+df.merge[[site]] = prepare.ukb.brainchart(df.out, site, codesite)
+```
+
+### Fetch neuroimaging data for oasis.
+```{r oasis}
+site = "oasis3"
+codesite = "25"
+
+df.out = set_links(site)
+
+# rename data and prepare for normative modelling
+df.merge[[site]] = prepare.oasis3.brainchart(df.out, site, codesite)
+```
+
+### Fetch neuroimaging data for vetsa
+```{r vetsa}
+site = "vetsa"
+codesite = "32"
+
+df.out = set_links(site)
+
+# rename data and prepare for normative modelling
+df.merge[[site]] = prepare.vetsa.brainchart(df.out, site, codesite)
+```
+
+
+
+### merge data together and save
+```{r merge}
+df.merge = data.table::rbindlist(df.merge, idcol = "dataset")
+df.merge = 
+df.merge %>% 
+  mutate(sid = sub_id,
+         sub_id = paste(dataset, sub_id, sep = "-"),
+         rid = paste(dataset, rid, sep = "-")) # ensure unique identifier
+df.merge =
+  df.merge %>% 
+  mutate(sitenum = if_else(site == "ous_ousPrisma", 10002, sitenum),
+         site = if_else(site == "ous_ousPrisma", "uio_ousPrisma", site)) #ous and uio prisma share scanner and sequence
+
+df.merge.long = 
+  df.merge %>% 
+  group_by(rid) %>% 
+  mutate(n = n_distinct(age)) %>% 
+  filter(n > 1) 
+
+# get some basic stats
+mod.stats = stats.overview(df.merge.long, df.merge)
+
+save(df.merge, 
+     df.merge.long,
+     mod.stats,
+     file = file.path(outdir, "df.all.Rda"))
+```
+
+
+### check scanner info
+```{r check n scanners}
+# define min number of subjects for a site to be included
+# will select scans with at least 22 DIFFERENT participants
+thr.obs = 25
+thr.subs = 12
+filter_sites_with_low_n_v2(df.merge.long,df.merge, thr.obs, thr.subs)
+mod.stats.filt = stats.overview(df.merge.long, df.merge)
+
+# plot raincloud-like plot
+gs = 
+  ggplot(df.merge.long, aes(x = age, y = dataset, fill = stat(x))) +
+  geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
+  scale_fill_viridis_c(name = "age", option = "C") +
+  scale_y_discrete(limits = unique(rev(df.merge.long$dataset))) +
+  theme_ridges(font_size = 13, grid = TRUE) + 
+  theme(legend.position = 'none',
+        axis.title.y = element_blank(),
+        axis.title.x = element_text(hjust = 0.5))
+  
+ggsave( file = file.path(outdir, "raincloud.png"))
+gs
+
+save(df.merge, 
+     df.merge.long,
+     mod.stats.filt,
+     sites, 
+     file = file.path(outdir, "df.all.filt.Rda"))
+```
+### define train and test datasets
+```{r define test and train}
+load( file.path(outdir, "df.all.filt.Rda"))
+datasets = df.merge.long$dataset %>% unique()
+train.datasets = c("ukb",
+                   "ucam")
+test.datasets = datasets[!datasets %in% train.datasets]
+# oasis used but only specified one scanner while many exists
+# one can select specific datasets if one wants
+
+set.seed(123)
+nreps = 100
+n.calibration = 30
+```
+
+
+### prepare calibration and testing datasets
+```{r calibration and testing}
+  # 1 save data from scanners in the normative model. no need of calibrations
+  for (i in train.datasets) {
+    modeldir = file.path(datadir, i, "normative")
+    try(dir.create(modeldir))
+    save_sample_from_model(df.merge.long, modeldir, i)
+  }
+
+
+
+# 2 random calibration sample
+for (ds in test.datasets) {
+  modeldir = file.path(datadir, ds, "normative")
+  try(dir.create(modeldir))
+  sites.site = sites[grepl(ds, sites$site),]
+  modeldir.rep = file.path(modeldir,str_pad(as.character(1:nreps),4,pad = "0") )
+
+  lapply(modeldir.rep, 
+       save_sample_random_in_calibration_v2, 
+       df.long = df.merge.long, 
+       df.merge = df.merge, 
+       n.calibration = n.calibration,
+       sites.site = sites.site, 
+       ds = ds)
+}
+```
+
+# CTH and subcortical areas
+### compute normative scores - cth and subcortical areas
+```{r compute normative scores}
+# this likely stable - though maybe repeate with surface area if desired
+#load( file.path(outdir, "df.all.filt.Rda"))
+model_name = 'lifespan_57K_82sites'
+phenotypes = 'phenotypes_sc_cth.txt'
+site_file = 'site_ids_ct_82sites.txt'
+
+# apply on normative datasetsets normative data
+scriptname = here("scripts/normative_scripts/apply_normative_normative_ready_samples.py")
+
+
+for (i in train.datasets) {
+  modeldir = 
+    file.path('/data_normative_long/df_mri/',
+          i,
+          'normative')
+
+  system(paste(
+    "module load Tkinter/3.9.5-GCCcore-10.3.0;",
+    "source py3_env/bin/activate;",
+    "python",
+     scriptname, 
+     model_name, 
+     site_file,
+     modeldir,
+     phenotypes,
+     sep = " "))
+}
+
+
+
+scriptname = here("scripts/normative_scripts/submit_apply_normative_models.sh")
+njobs = 500
+
+for (i in test.datasets) {
+  modeldir = 
+      file.path('/data_normative_long/df_mri/',
+            i,
+            'normative',
+            str_pad(as.character(1:nreps),4,pad = "0"))
+  
+  for (ii in 1:nreps) {
+    system(paste(
+    "module purge; ",
+    "sbatch",
+     scriptname, 
+     model_name, 
+     site_file,
+     modeldir[ii],
+     phenotypes,
+     i,
+     sep = " "))
+  
+    Sys.sleep(1) 
+    df.squeue = squeue("p274-didacvp","normative_model")
+    print(paste0("script running on sbatch, N: ",
+                 i," ",
+                 ii," ",  
+                 length(df.squeue$V1)-1))
+     
+    while (length(df.squeue$V1) > njobs) {
+      Sys.sleep(120) 
+      print("waiting a bit too many jobs")
+      df.squeue = squeue("p274-didacvp","normative_model")
+    }
+  }
+}
+
+```
+
+### retrieve normative data and merge
+```{r merge data}
+scriptname = here("scripts/normative_scripts/submit_summarize_normative_reps.sh")
+phenotypes = 'phenotypes_sc_cth.txt'
+
+for (ds in test.datasets) {
+  system(paste(
+  "module purge; ",
+  "sbatch",
+   scriptname, 
+   ds,
+   model_name, 
+   nreps,
+   phenotypes,
+   here(),
+   sep = " "))
+
+    print(paste0("script running on sbatch, N: ",
+                 ds))
+}
+```
+
+### compute Z change with time
+```{r compute z change}
+load( file.path(outdir, "df.all.filt.Rda"))
+scriptname =  here("scripts/normative_scripts/submit_compute_Zchange.sh")
+phenotypes = 'phenotypes_sc_cth.txt'
+phenos = import(here("scripts/braincharts-master/docs", phenotypes), header = F) %>% 
+  .$V1
+datasets = df.merge.long$dataset %>% unique()
+model_name="lifespan_57K_82sites"
+
+for (ds in 1:length(datasets)) {
+  mmodels = here('data_normative_long/df_mri', datasets[ds], "normative")
+
+  for (i in 1:length(phenos)) {
+    system(paste(
+      "module purge;",
+      "sbatch",
+       scriptname, 
+       mmodels, 
+       model_name,
+       datasets[ds],
+       paste0("'",phenos[i],"'"),
+       sep = " "))
+  
+    
+    df.squeue = squeue("p274-didacvp","compute_Zchange")
+    print(paste("script running on sbatch, N:", 
+                length(df.squeue$V1)-1, 
+                ds, 
+                phenos[i],
+                i,
+                length(phenos),
+                length(datasets)),  sep = " ")
+    
+    while (length(df.squeue$V1) > njobs) {
+      Sys.sleep(120) 
+      print("waiting a bit too many jobs")
+      df.squeue = squeue("p274-didacvp","compute_Zchange")
+    }  
+  }
+}
+```
+
+
+### merge mri Z scores - impute outlier data
+```{r merge and explore}
+#dataset = "uio"
+thr.mean = 4 
+thr.delta = 6
+thr.time = 1.5
+thr.miss=.25
+model_name="lifespan_57K_82sites"
+scriptname =  here("scripts/normative_scripts/submit_impute_outlier_data.sh")
+
+for (ds in 1:length(datasets)) {
+  df.pheno = filter_out_outliers(datasets[ds], 
+                                 phenos, 
+                                 thr.time, thr.mean, 
+                                 thr.delta,
+                                 model_name)
+}
+
+for (ds in 1:length(datasets)) {
+  datasetdir = here("data_normative_long/df_mri/", datasets[ds], "normative")
+  
+  system(paste(
+      "module purge;",
+      "sbatch",
+       scriptname, 
+       datasetdir, 
+       "delta",
+       "3",
+       datasets[ds],
+       model_name,
+       sep = " "))
+
+  system(paste(
+      "module purge;",
+      "sbatch",
+       scriptname, 
+       datasetdir, 
+       "mean",
+       "3",
+       datasets[ds],
+       model_name,
+       sep = " "))
+}
+```
+
+## merge data in single data.frame
+```{r}
+model_name="lifespan_57K_82sites"
+df = merge_normative_mri_data_v2(datasets, model_name, model_name)
+```
