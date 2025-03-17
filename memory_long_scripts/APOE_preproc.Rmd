@@ -1,0 +1,313 @@
+---
+title: "APOE"
+author: "MS"
+date: '2024-01-17'
+output: html_document
+---
+
+#Load lib
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(rio)
+library(here)
+library(stringr)
+library(tidyverse)
+
+wd = here('data_memory_long', 'all')
+source(here("scripts/memory_long_scripts/6_analyses_functions.R"))
+df.harmonize.ap = import(file.path(wd, 'harmonize_cogn_apoe.xlsx'))
+df.apoe = list()
+```
+
+
+#Harmonize and merge APOE data
+## adni
+```{r adni}
+set_links("adni")
+df.adni = import(file.path(datasetdir, "participants.tsv")) %>% 
+  mutate(dataset = "adni",
+         apoe4 = as.integer(apoe4),
+         apoe_status = ifelse(apoe4 %in% c(1,2), 1, 0))
+
+df.adni = rename_var(df.adni, dataset)
+
+df.apoe[["adni"]] <- df.adni %>% 
+  mutate(subject = as.character(subject))
+```
+## aibl
+```{r aibl}
+set_links("aibl")
+df.aibl = import(file.path(datasetdir, "aibl_apoeres_01-Jun-2018.csv"))
+
+
+df.aibl <- df.aibl %>%
+  mutate(dataset = "aibl",
+         apoe4 = ifelse(APGEN1 == -4 | APGEN2 == -4, NA,
+                        ifelse(APGEN1 == 4 & APGEN2 == 4, 2,
+                               ifelse(APGEN1 == 4 | APGEN2 == 4, 1, 0))),
+         apoe_status = if_else(is.na(apoe4), NaN, 
+                              if_else(apoe4 %in% c(1,2), 1, 0)))
+
+df.aibl = rename_var(df.aibl, dataset)
+
+df.apoe[["aibl"]] <- df.aibl %>% 
+  mutate(subject = as.character(subject))
+```
+
+## bbhi
+```{r bbhi}
+set_links("bbhi")
+df.bbhi = import(file.path(datasetdir, "BBHI_APOE.xlsx"))
+
+df.bbhi <- df.bbhi %>%
+  mutate(dataset = "bbhi",
+         apoe4 = case_when(
+    str_count(apoe, "E4") == 2 ~ 2,  # Two "E4" occurrences
+    str_count(apoe, "E4") == 1 ~ 1,  # One "E4" occurrence
+    TRUE ~ 0                          # No "E4" occurrence
+  ),
+  apoe_status = if_else(is.na(apoe4), NaN, 
+                              if_else(apoe4 %in% c(1,2), 1, 0)))
+
+df.bbhi = rename_var(df.bbhi, dataset)
+df.apoe[["bbhi"]] <- df.bbhi %>% 
+  mutate(subject = as.character(subject))
+```
+
+## habs
+```{r HABS}
+set_links("habs")
+df.habs = import(file.path(datasetdir, "Demographics_HABS_DataRelease_2.0.csv"))
+
+df.habs <- df.habs %>%
+  mutate(dataset = "habs",
+         apoe4 = case_when(
+           is.na(APOE_haplotype) ~ NaN, 
+    (APOE_haplotype %/% 10 == 4) & (APOE_haplotype %% 10 == 4) ~ 2,  # Two "4" in the number
+    (APOE_haplotype %/% 10 == 4) | (APOE_haplotype %% 10 == 4) ~ 1,  # One "4" in the number
+    TRUE ~ 0                                                         # No "4" in the number
+  ),
+  apoe_status = if_else(is.na(apoe4), NaN, 
+                              if_else(apoe4 %in% c(1,2), 1, 0)))
+
+
+df.habs = rename_var(df.habs, dataset)
+df.apoe[["habs"]] <- df.habs %>% 
+  mutate(subject = as.character(subject))
+```
+
+## mpib
+```{r MPIB}
+  set_links("mpib")
+ load(file.path(datasetdir, "apoe.rda"))
+ df.mpib = 
+   df.mpib.apoe %>% 
+   mutate(apoe_status = if_else(is.na(apoe_E4), NaN, 
+                              if_else(apoe_E4 %in% c(1,2), 1, 0)),
+         apoe4 = if_else(is.na(APOE1) | is.na(APOE2), NaN, 
+                         if_else(APOE1 == 0 | APOE2 == 0, NaN,
+                                 if_else(APOE1 == 4 & APOE2 == 4, 2, 
+                                         if_else(APOE1 == 4 | APOE2 ==4, 1,0)))),  
+          dataset = "mpib")
+df.apoe[["mpib"]] = rename_var(df.mpib, dataset)
+```
+
+## oasis 3
+```{r oasis 3}
+set_links("oasis3")
+df.oasis3 = import(file.path(datasetdir,"data", "demo.csv"))
+datadir = file.path(datasetdir, "data", "data_files")
+
+
+df.oasis3 <- df.oasis3 %>%
+  mutate(dataset = "oasis3",
+         apoe4 = case_when(
+           is.na(apoe) ~ NaN, 
+    (apoe %/% 10 == 4) & (apoe %% 10 == 4) ~ 2,  # Two "4" in the number
+    (apoe %/% 10 == 4) | (apoe %% 10 == 4) ~ 1,  # One "4" in the number
+    TRUE ~ 0                                     # No "4" in the number
+  ),
+   apoe_status = if_else(is.na(apoe4), NaN, 
+                              if_else(apoe4 %in% c(1,2), 1, 0)))
+
+df.oasis3 = rename_var(df.oasis3, dataset)
+
+df.apoe[["oasis3"]] <- df.oasis3 %>% 
+  mutate(subject = as.character(subject))
+
+```
+
+## ous
+```{r ous}
+set_links("ous")
+load(file.path(datasetdir, "apoe.info.rda")) 
+load(file.path(datasetdir, "cognNBM_updated.Rda"))
+xx = cognNBM_updated %>% select(ID, ApoE_carrier_NFL144)
+xx$CrossProject_ID = xx$ID
+xx = xx[!duplicated(xx), ]
+df.ous = full_join(xx, df.apoe.ous)
+df.ous = 
+  df.ous %>% 
+  mutate(apoe_status = if_else(is.na(ApoE_carrier_NFL144) & is.na(Gene_APOE_impE4), NaN, 
+                               if_else(is.na(ApoE_carrier_NFL144) & Gene_APOE_impE4 %in% c(1,2), 1,
+                                       if_else(is.na(ApoE_carrier_NFL144) & Gene_APOE_impE4 == 0, 0, 
+                                               if_else(ApoE_carrier_NFL144 == 1,1,0)))), 
+         apoe4 = NA, 
+         dataset = "ous")
+
+df.ous = rename_var(df.ous, dataset)
+df.apoe[["ous"]] <- df.ous %>% 
+  mutate(subject = as.character(subject))
+```
+
+## preventad
+```{r preventad}
+set_links("preventad")
+df.preventad = import(file.path(datasetdir,"2022_11_23","tabular", "Genetics_Registered_PREVENTAD.csv"))
+
+df.preventad <- df.preventad %>%
+  mutate(dataset = "preventad",
+         apoe4 = as.integer(case_when(
+    str_count(APOE, "4") == 1 ~ 1,
+    str_count(APOE, "4") == 2 ~ 2,
+    TRUE ~ 0
+  )),
+   apoe_status = if_else(is.na(apoe4), NaN, 
+                              if_else(apoe4 %in% c(1,2), 1, 0)))
+
+df.preventad = rename_var(df.preventad, dataset)
+df.apoe[["preventad"]] <- df.preventad %>% 
+  mutate(subject = as.character(subject))
+```
+
+##ub
+```{r ub}
+set_links("ub")
+ub_waha = import(file.path(datasetdir,"dna", "test table_waha.tsv")) %>% 
+  rename(subject_id = Subject_id) %>% 
+  mutate(apoe4 = ifelse(APOE_polymorphism == -9999, NA, 
+                        ifelse(APOE_polymorphism %in% c(1,2,6), 0,
+                               ifelse(APOE_polymorphism == 3, 1, 
+                                      ifelse(APOE_polymorphism == 4,2,NA))))) %>% 
+  select(subject_id, apoe4, APOE_E4_status) %>% 
+  mutate(APOE_E4_status = na_if(APOE_E4_status, -9999))
+  
+
+
+ub_pd = import(file.path(datasetdir,"dna", "imputed_apoe.tsv")) %>% 
+  mutate(subject_id = str_replace(FID, "LB_UB", "nc")) %>% 
+  rename(apoe4 = E4) %>% 
+  mutate(APOE_E4_status = case_when(
+    is.na(apoe4) ~ NA_real_, # Keep NA as NA
+    apoe4 %in% c(1, 2) ~ 1,  # If apoe4 is 1 or 2, then APOE_E4_status is 1
+    apoe4 == 0 ~ 0,          # If apoe4 is 0, then APOE_E4_status is 0
+    TRUE ~ NA_real_          # For any other case, assign NA (optional, for safety)
+  )) %>% 
+  select(subject_id, apoe4, APOE_E4_status)
+  
+df.ub <- rbind(ub_waha, ub_pd) %>% 
+  mutate(dataset = "ub")
+
+df.ub = rename_var(df.ub, dataset)
+df.apoe[["ub"]] <- df.ub %>% 
+  mutate(subject = as.character(subject))
+```
+
+## uio
+```{r uio}
+set_links("uio")
+df.uio = import(file.path(datasetdir, "noas_query_2022-11-29_21-26-23_041b29e_b0f5e7b.csv"))
+
+df.uio <- df.uio %>% 
+  filter(!is.na(apolipoprotein_impe4)) %>% 
+  mutate(dataset = "uio",
+         apoe_status = ifelse(apolipoprotein_impe4 %in% c(1,2), 1, 0))
+
+df.uio = rename_var(df.uio, dataset)
+df.apoe[["uio"]] <- df.uio %>% 
+  mutate(subject = as.character(subject))
+```
+
+## ukb
+```{r ukb}
+set_links("ukb")
+df.ukb = import(file.path(datasetdir, "UKB_APOE2_impE4.tsv"))
+
+
+df.ukb <- df.ukb %>% 
+  mutate(dataset = "ukb",
+         APOEimpE4 = as.integer(APOEimpE4),
+          apoe_status = if_else(is.na(APOEimpE4), NaN, 
+                              if_else(APOEimpE4 %in% c(1,2), 1, 0)))
+      
+df.ukb = rename_var(df.ukb, dataset)
+df.apoe[["ukb"]] <- df.ukb %>% 
+  mutate(subject = as.character(subject))
+```
+
+## umu
+```{r}
+set_links("umu")
+ df.umu = import(file.path(datasetdir, "BetulaAPOE.csv"))
+ df.umu = 
+   df.umu %>% 
+   rename(CID = ID) %>% 
+   mutate(dataset = "umu", 
+          apoe4 = if_else(is.na(apoe), NaN, 
+                          if_else(apoe %in% c(44), 2, 
+                                  if_else(apoe %in% c(34, 24), 1,
+                                          if_else(apoe %in% c(33,23),0, -1)))), 
+           apoe_status = if_else(is.na(apoe4), NaN, 
+                              if_else(apoe4 %in% c(1,2), 1, 0)))
+
+ df.apoe[["umu"]]= rename_var(df.umu, dataset)
+```
+
+## vetsa
+```{r vetsa}
+set_links("vetsa")
+df.vetsa = import(file.path(datasetdir,"Cognitive", "admin_2023_07_07.sas7bdat"))
+
+df.vetsa <- df.vetsa %>%
+  mutate(dataset = "vetsa",
+         sex = "male",
+         apoe4 = case_when(
+    apoe2019 == "" ~ NaN,
+    grepl("4", apoe2019) & !grepl("4/4", apoe2019) ~ 1,   # One 4, not two 4s
+    grepl("4/4", apoe2019) ~ 2,                           # Two 4s
+    !grepl("4", apoe2019) ~ 0                            # No 4s
+  ),
+  apoe_status = if_else(is.nan(apoe4), NaN, 
+                               if_else(apoe4 %in% c(1,2), 1, 0)))
+
+df.vetsa = rename_var(df.vetsa, dataset)
+df.apoe[["vetsa"]] <- df.vetsa %>% 
+  mutate(subject = as.character(subject))
+```
+
+# Merge and save 
+```{r merge apoe}
+## MERGE AND SAVE
+df.apoe = data.table::rbindlist(df.apoe)
+df.apoe <- df.apoe %>%
+  mutate(rid = paste(dataset, subject, sep = "-")) %>% 
+  distinct() %>% 
+  filter(!is.na(apoe_status), 
+         !is.nan(apoe_status))
+
+ save(df.apoe,
+      file = file.path(wd,"mega","apoe","output", "APOE.rda"))
+```
+
+#Merge with memory+brain and save
+```{r merge with mri_mem dt}
+load(file.path(wd,"mega","apoe","output", "APOE.rda"))
+load(file.path(wd, "merged.rda"))
+
+merged_apoe <- left_join(merged, df.apoe)
+
+save(merged_apoe,
+     file = file.path(wd,"mega","apoe","output" ,"APOE_merged.rda"))
+```

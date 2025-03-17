@@ -1,0 +1,118 @@
+---
+title: "5_merge"
+author: "MS"
+date: "4/11/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+library(here)
+library(rio)
+library(tidyverse)
+
+source(here("scripts/memory_long_scripts/5_merge_functions.R"))
+dir = here('data_memory_long', 'all')
+
+#memory.merge = list()
+memory.merge.full = list()
+```
+
+## filtr in and merge data
+
+## merge
+```{r compute memory change}
+set_links("uio")
+site = "uio"
+memory.merge.full[[site]] = extract_output.full("uio")
+
+
+#umu
+set_links("umu")
+site = "umu"
+memory.merge.full[[site]] = extract_output.full("umu")
+
+#ub#
+set_links("ub")
+site = "ub"
+memory.merge.full[[site]] = extract_output.full("ub")
+
+#mpib
+set_links("mpib")
+site = "mpib"
+memory.merge.full[[site]] = extract_output.full("mpib")
+
+
+#adni
+set_links("adni")
+site = "adni"
+memory.merge.full[[site]] = extract_output.full("adni")
+
+
+#aibl
+set_links("aibl")
+site = "aibl"
+memory.merge.full[[site]] = extract_output.full("aibl")
+
+#ous
+set_links("ous")
+site = "ous"
+memory.merge.full[[site]] = extract_output.full("ous")
+
+#ukb
+set_links("ukb")
+site = "ukb"
+memory.merge.full[[site]] = extract_output.full("ukb")
+
+#habs
+set_links("habs")
+site = "habs"
+memory.merge.full[[site]] = extract_output.full("habs")
+
+#preventad
+set_links("preventad")
+site = "preventad"
+memory.merge.full[[site]] = extract_output.full("preventad")
+
+#oasis3
+set_links("oasis3")
+site = "oasis3"
+memory.merge.full[[site]] = extract_output.full("oasis3")
+
+#bbhi
+set_links("bbhi")
+site = "bbhi"
+memory.merge.full[[site]] = extract_output.full("bbhi")
+
+#vetsa
+set_links("vetsa")
+site = "vetsa"
+memory.merge.full[[site]] = extract_output.full("vetsa")
+
+#ucam
+  set_links("ucam")
+  site = "ucam"
+  memory.merge.full[[site]] = extract_output.full("ucam")
+
+```
+
+
+### merge - full dataset                                                                                                                                                                      
+```{r}
+memory.merge.full = data.table::rbindlist(memory.merge.full, idcol = "dataset") 
+memory.merge.full <-memory.merge.full %>% 
+  mutate(rid = paste(dataset, subject, sep = "-"),
+         retest.dummy = if_else(timepoint > 1,1,0), #01111
+         test.dummy2 = if_else(timepoint > 2,1,0)) #00111  
+#duplicated(memory.merge.full) %>% sum()
+save(memory.merge.full,
+       file =  file.path(dir, "df.memory_merged_full.rda"))
+
+memory.merge.full %>% 
+  group_by(dataset) %>% 
+  summarise(Subs = n_distinct(rid), 
+         n = n())
+```
+

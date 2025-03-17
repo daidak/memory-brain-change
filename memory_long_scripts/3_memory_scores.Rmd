@@ -1,0 +1,128 @@
+---
+title: "memory_scores"
+author: "MS"
+date: "2/6/2023"
+output: html_document
+---
+
+#load lib
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(here)
+library(rio)
+library(rlang)
+library(missMDA)
+
+source(here("scripts/memory_long_scripts/3_memoryscores_functions.R"))
+```
+
+### standardize memory scores and compute PCA
+## UiO
+```{r standardize memory scores}
+set_links("uio")
+
+memoryscore.uio("uio")
+                
+```
+
+## Umu
+```{r standardize memory scores}
+set_links("umu")
+
+memoryscore.umu("umu")
+
+```
+
+## Ub
+```{r standardize memory scores}
+set_links("ub")
+
+memoryscore.ub("ub")
+```
+
+## mpib
+```{r standardize memory scores}
+set_links("mpib")
+
+
+memoryscore.mpib("mpib")
+
+```
+
+## adni
+```{r standardize memory scores}
+set_links("adni")
+
+memoryscore.adni("adni")
+
+```
+
+## aibl
+```{r standardize memory scores}
+set_links("aibl")
+
+memoryscore.aibl("aibl")
+
+```
+
+
+## ous
+```{r standardize memory scores}
+set_links("ous")
+
+        
+memoryscore.ous("ous")
+
+```
+
+## ukb
+```{r standardize memory scores}
+set_links("ukb")
+
+
+memoryscore.ukb("ukb")
+
+```
+
+## habs
+```{r standardize memory scores}
+set_links("habs")
+
+memoryscore.habs("habs")
+
+```
+
+## preventad
+```{r standardize memory scores}
+set_links("preventad")
+
+
+memoryscore.preventad("preventad")
+
+```
+
+## oasis3
+```{r standardize memory scores}
+set_links("oasis3")
+
+memoryscore.oasis3("oasis3")
+
+```
+
+## bbhi
+```{r standardize memory scores}
+set_links("bbhi")
+
+memoryscore.bbhi("bbhi")
+
+```
+
+## vetsa
+```{r standardize memory scores}
+set_links("vetsa")
+
+memoryscore.vetsa("vetsa")
+
+```
+

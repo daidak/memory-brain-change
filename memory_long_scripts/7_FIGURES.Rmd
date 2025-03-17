@@ -1,0 +1,780 @@
+rm---
+title: "7_FIGURES"
+author: "MS"
+date: '2023-11-13'
+output: html_document
+---
+
+#Load lib
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(gratia)
+library(here)
+library(tidyverse)
+library(mgcv)
+library(viridis)
+library(patchwork)
+library(kableExtra)
+library(ggseg)
+library(ggsegDesterieux)
+library(extrafont)
+library(ggridges)
+options(bitmapType='cairo')
+
+wd = here("data_memory_long/all")
+outdir = file.path(wd, "mega", "report")
+load(file.path(wd, "desterieux.Rda"))
+source(here("scripts/memory_long_scripts/7_figures_functions.R"))
+```
+
+# FIGURES
+#1.MEGA (change) 
+## 1.1Main
+```{r mega change main, echo=FALSE, warning=F}
+outdir.mega.main = file.path(outdir, "main")
+load(file.path(wd,"mega", "df.mega.rda"))
+
+df <- mega %>% 
+    ungroup() 
+
+
+(m2 <- brain_plots(df, "gamm.w.beta.m5.0.weighted"))
+ggsave(file.path(outdir.mega.main, "main.unthreshold.cortical.png"), plot = m2$g1)
+ggsave(file.path(outdir.mega.main, "main.unthreshold.aseg.png"), plot = m2$g2)
+
+
+(m1 <- wrapper_brain_plots(df, "gamm.w.beta.m5.0.weighted"))
+ggsave(file.path(outdir.mega.main, "main.threshold.cortical.png"), plot = m1$g1)
+ggsave(file.path(outdir.mega.main, "main.threshold.aseg.png"), plot = m1$g2)
+
+
+dat = mega %>% 
+  filter(gamm.w.pval.bootstrap < .05) %>% 
+  select(features, 
+         gamm.w.beta.m5.0.weighted, 
+         gamm.w.beta.m2.0.weighted, 
+         gamm.w.pval.bootstrap.log, 
+         gamm.w.pval.bootstrap.log.fdr) %>% 
+  arrange(desc(gamm.w.pval.bootstrap.log))
+(kat = dat %>% kable(digits = 3) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = F))
+writeLines(kat, file.path(outdir.mega.main, "main.table.sig.html"))
+
+#load(file.path(wd, "merged_reliability.rda"))
+#xx = df.merged$data[[1]]$delta_brain
+#quantile(xx, c(0.025, 0.975)) 
+gs = wrapper_plot_trajectories_main(mega, outdir.mega.main)
+```
+
+## 1.2 Age interaction
+```{r mega change interaction I , echo=FALSE, warning=F}
+outdir.mega.int = file.path(outdir, "int")
+load(file.path(wd,"mega", "df.mega.rda"))
+
+df <- mega %>% 
+    ungroup() 
+ 
+(m2 <- brain_plots(df, "gamm.int.w.pval.bootstrap.log"))
+ggsave(file.path(outdir.mega.int, "int.unthreshold.cortical.png"), plot = m2$g1)
+ggsave(file.path(outdir.mega.int, "int.unthreshold.aseg.png"), plot = m2$g2)
+
+(m1 <-  wrapper_brain_plots(df, "gamm.int.w.pval.bootstrap.log", mode = "int"))
+ggsave(file.path(outdir.mega.int, "int.threshold.cortical.png"), plot = m1$g1)
+ggsave(file.path(outdir.mega.int, "int.threshold.aseg.png"), plot = m1$g2)
+
+dat = mega %>% 
+  filter(gamm.int.w.pval.bootstrap.log > 1.3) %>% 
+  select(features, gamm.int.w.pval.bootstrap.log, gamm.int.w.pval.bootstrap.log.fdr) %>% 
+  arrange(desc(gamm.int.w.pval.bootstrap.log.fdr))
+(kat = dat %>% kable(digits = 3) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = F))
+writeLines(kat, file.path(outdir.mega.int, "int.table.sig.html"))
+
+
+gs = wrapper_plot_trajectories_int(df)
+```
+
+# 1.3 Hemi diff
+```{r}
+gs = wrapper_hemi_plot_main(wd, outdir)
+gs.errorbar = wrapper_hemi_plot_int(wd, outdir)  
+```
+
+
+# 2.REGIONAL VS GLOBAL EFFECTS 
+```{r clustering pca and corr matrix, echo=FALSE, warning=F}
+outdir = file.path(wd, "mega", "report")
+gs.cor = wrapper_density_tile_plot(wd, outdir)
+gs.cc = wrapper_consensus_cluster_plot(wd, outdir)
+gs.pca = wrapper_plot_pca(wd, outdir)
+
+load(file.path(wd,"mega","consensus_cluster","mod.results.rda"))
+
+
+df.cl1 = df.cl1 %>% 
+  mutate(type = "cl")
+df.pca = df.pca %>% 
+  mutate(type = "pca")
+df.basic = df.basic %>% 
+  mutate(type = "basic")
+df.clall = df.clall %>% 
+  mutate(type = "all") %>% 
+  select(cl, pval, pboot, type)
+df.clall$cl = df.basic$cl
+
+df= reduce(list(df.cl1, 
+            df.pca, 
+            df.basic, 
+            df.clall), 
+       rbind)
+
+dt.cl11 = dt.cl11 %>% 
+  mutate(type = "cl")
+dt.cl11$cl = df.cl1$cl
+
+dt.pca1 = dt.pca1 %>% 
+  mutate(type = "pca")
+dt.pca1$cl = df.pca$cl
+
+dt.basic1 = dt.basic1 %>% 
+  mutate(type = "basic")
+dt.basic1$cl = df.basic$cl
+
+dt.clall1 = dt.clall1 %>% 
+  mutate(type = "all") 
+dt.clall1$cl = dt.basic1$cl
+  
+dt= reduce(list(dt.cl11, 
+            dt.pca1, 
+            dt.basic1, 
+            dt.clall1), 
+       rbind)
+
+dat = left_join(df, dt)
+(kat = dat %>% kable(digits = 3) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = F))
+writeLines(kat,  file.path(outdir, "dimensionality", "table.mod.html"))
+
+
+```  
+
+
+#3.APOE 
+
+### 3.1 Apoe on memory
+```{r}
+outdir.mega.mem = file.path(outdir, "memory_apoe")
+gs = wrapper_memory_plot_main(wd, outdir) 
+gs1 = wrapper_memory_plot_age(wd, outdir)
+gsall = gs+gs1
+ggsave(file.path(outdir.mega.mem, "combinedplots.png"),
+                 plot = gsall, 
+                 height = 7,
+                 width = 14)
+```
+
+
+### 3.2 Apoe on brain
+#### 3.2.1 Main effect
+```{r}
+#table
+ outdir.mega.brain= file.path(outdir, "brain_apoe")
+  load( file.path(wd,"mega","apoe", "df.mega.apoe.brain.rda"))
+  dat = mega.apoe.brain %>% 
+    filter(lme.apoe.brain_pval  < 0.05) %>% 
+    select(features, 
+           lme.apoe.brain_beta,
+           lme.apoe.brain_pval.log,
+           lme.apoe.brain_pval.log.fdr) %>% 
+    arrange(lme.apoe.brain_beta)
+  (kat = dat %>% kable(digits = 3) %>% 
+      kable_styling(bootstrap_options = "striped", full_width = F))
+  writeLines(kat, file.path(outdir.mega.brain, "table.sig.main.html"))
+  
+gs = wrapper_plot_apoe_brain_main(wd, outdir) 
+gs1 = wrapper_plot_apoe_brain_main_across(wd, outdir)  
+gsall = gs + gs1 + plot_layout(widths = c(5, 1.2))
+ggsave(file.path(outdir.mega.brain, "apoe_brain_combined.png"), 
+       plot = gsall, width = 16, height = 7)  
+  
+```
+
+#### 3.2.2 Age effects
+```{r}
+# table
+ outdir.mega.brain= file.path(outdir, "brain_apoe")
+  load( file.path(wd,"mega","apoe", "df.mega.apoe.brain.rda"))
+  dat = mega.apoe.brain %>% 
+    filter(gam.apoe.brain_agep.boot  < 0.05) %>% 
+    select(features, 
+           gam.apoe.brain_ageF,
+           gam.apoe.brain_agep.boot.log,
+           gam.apoe.brain_agep.boot.log.fdr) %>% 
+    arrange(gam.apoe.brain_agep.boot.log)
+  (kat = dat %>% kable(digits = 3) %>% 
+      kable_styling(bootstrap_options = "striped", full_width = F))
+  writeLines(kat, file.path(outdir.mega.brain, "table.sig.age.html"))
+  
+ 
+  gsall = wrapper_plot_apoe_brain_age(wd, outdir) 
+```
+
+
+### 3.3 Apoen on brain - memory associations
+```{r}
+load( file.path(wd,"mega","apoe", "df.mega.apoe.rda"))
+outdir.mega.apoe= file.path(outdir, "apoe")
+dat  = 
+  mega.apoe %>% 
+  select(features, 
+         gam.main.w.apoeOF, 
+         gam.main.w.apoeOp, 
+         gam.main.w.apoeOp.bootstrap.log, 
+         gam.main.w.apoeOp.bootstrap.log.fdr) %>% 
+  filter(gam.main.w.apoeOp.bootstrap.log > 1.3) %>% 
+  arrange(gam.main.w.apoeOp.bootstrap.log)
+  (kat = dat %>% kable(digits = 3) %>% 
+      kable_styling(bootstrap_options = "striped", full_width = F))
+  writeLines(kat, file.path(outdir.mega.apoe, "table.sig.main.html"))                          
+
+  # table interaction
+  dat1  = 
+  mega.apoe %>% 
+  select(features, 
+         gam.int.w.apoeOF, 
+         gam.int.w.apoeOp, 
+         gam.int.w.apoeOp.bootstrap.log, 
+         gam.int.w.apoeOp.bootstrap.log.fdr) %>% 
+  filter(gam.int.w.apoeOp.bootstrap.log > 1.3) %>% 
+  arrange(gam.int.w.apoeOp.bootstrap.log)
+  (kat1 = dat1 %>% kable(digits = 3) %>% 
+      kable_styling(bootstrap_options = "striped", full_width = F))
+  writeLines(kat1, file.path(outdir.mega.apoe, "table.sig.int.html"))                          
+
+
+### Plot  basic
+  gs = wrapper_plot_apoe_main(wd, outdir)
+  gs1 = wrapper_plot_apoe_int(wd, outdir)
+
+  gsall = gs + gs1 + plot_layout(widths = c(1, 3))
+  ggsave(file.path(outdir.mega.apoe, "apoe_hipp_combined.png"), 
+       plot = gsall, width = 14, height = 8)  
+```
+
+# 4 SIMULATIONS
+```{r simulation}
+outdir = file.path(wd, "mega", "report")
+outdir.mega.simulation = file.path(outdir, "simulation")
+gs1.nonlinear = wrapper_simulation_nonlinear(outdir.mega.simulation) # linear to non-linear
+gs2.meanchange = wrapper_simulation_meanchange(outdir.mega.simulation) # mean change
+gs3.dispersion = wrapper_simulation_dispersion(outdir.mega.simulation )
+gs4.skew = wrapper_simulation_skew(outdir.mega.simulation)
+gs = gs1.nonlinear[[1]] + gs2.meanchange[[1]] + gs3.dispersion[[1]] + gs4.skew[[1]]+ plot_layout(ncol = 4)
+ggsave(file.path(outdir.mega.simulation, "simulation.all.png"), 
+         plot = gs, 
+         width = 24, 
+         height = 8)
+```
+
+## provitional code to test mean effects
+```{r}
+#  out.dataset.X = 
+#   rbind(
+#   df$out.dataset[[1]] %>% 
+#   mutate(g = "g") %>% 
+#   pivot_longer(-g, 
+#                names_to = "G", 
+#                values_to = "X") %>% 
+#   filter(G %in% c("X")) %>% 
+#     mutate(skew = "low"), 
+#   df$out.dataset[[2]] %>% 
+#   mutate(g = "g") %>% 
+#   pivot_longer(-g, 
+#                names_to = "G", 
+#                values_to = "X") %>% 
+#   filter(G %in% c("X")) %>% 
+#     mutate(skew = "mid"), 
+#   df$out.dataset[[3]] %>% 
+#   mutate(g = "g") %>% 
+#   pivot_longer(-g, 
+#                names_to = "G", 
+#                values_to = "X") %>% 
+#   filter(G %in% c("X")) %>% 
+#     mutate(skew = "high")
+# )
+#  
+# out.dt =  out.dataset.X %>% 
+#    group_by(skew) %>% 
+#    summarise(mean(X), 
+#              sd(X))
+# 
+# print((out.dt$`mean(X)`[3] - out.dt$`mean(X)`[2])/out.dt$`sd(X)`[1])
+```
+
+
+#TABLES
+# 1. Main demographics
+```{r}
+outdir.mega.tables = file.path(outdir, "tables")
+load(file.path(wd, "merged_reliability.rda"))
+df = 
+  df.merged %>% 
+  filter(features == "Left-Hippocampus") %>%  
+  unnest()
+
+
+dat = 
+    df %>% 
+    group_by(dataset) %>% 
+    summarise(Subs = n(),
+              sex = sum(sex), 
+              apoeNA = sum(is.na(apoe_status)),
+              apoe0 = sum(apoe_status == 0, na.rm = T),
+              apoe1 = sum(apoe_status == 1, na.rm = T),
+              xage.mean = mean(xage),
+              xage.sd = sd(xage) , 
+              xage.min =min(xage), 
+              xage.max = max(xage),
+              Obs.mem = sum(total_tp_memory), 
+              Obs.mem.mean = mean(total_tp_memory), 
+              Obs.mem.sd = sd(total_tp_memory), 
+              Obs.mem.min = min(total_tp_memory), 
+              Obs.mem.max = max(total_tp_memory), 
+              Obs.brain = sum(n), 
+              Obs.brain.mean = mean(n), 
+              Obs.brain.sd = sd(n), 
+              Obs.brain.min = min(n), 
+              Obs.brain.max = max(n), 
+              time.brain.mean = mean(time), 
+              time.brain.sd = sd(time), 
+              time.brain.min = min(time), 
+              time.brain.max = max(time), 
+              time.mem.mean = mean(total_followup_memory), 
+              time.mem.sd = sd(total_followup_memory), 
+              time.mem.min = min(total_followup_memory), 
+              time.mem.max = max(total_followup_memory), 
+              .groups = 'drop') %>% 
+    bind_rows(
+      df %>% 
+        ungroup() %>% 
+        summarise(dataset = "all", 
+                  Subs = n(),
+                  sex = sum(sex), 
+                  apoeNA = sum(is.na(apoe_status)),
+                  apoe0 = sum(apoe_status == 0, na.rm = T),
+                  apoe1 = sum(apoe_status == 1, na.rm = T),
+                  xage.mean = mean(xage),
+                  xage.sd = sd(xage) , 
+                  xage.min =min(xage), 
+                  xage.max = max(xage),
+                  Obs.mem = sum(total_tp_memory), 
+                  Obs.mem.mean = mean(total_tp_memory), 
+                  Obs.mem.sd = sd(total_tp_memory), 
+                  Obs.mem.min = min(total_tp_memory), 
+                  Obs.mem.max = max(total_tp_memory), 
+                  Obs.brain = sum(n), 
+                  Obs.brain.mean = mean(n), 
+                  Obs.brain.sd = sd(n), 
+                  Obs.brain.min = min(n), 
+                  Obs.brain.max = max(n), 
+                  time.brain.mean = mean(time), 
+                  time.brain.sd = sd(time), 
+                  time.brain.min = min(time), 
+                  time.brain.max = max(time), 
+                  time.mem.mean = mean(total_followup_memory), 
+                  time.mem.sd = sd(total_followup_memory), 
+                  time.mem.min = min(total_followup_memory), 
+                  time.mem.max = max(total_followup_memory)))
+
+
+kat = kable_2_table(dat, bold = "last", digit = 3)
+writeLines(kat, file.path(outdir.mega.tables, "main.table.html"))
+```
+
+
+# S Table1. main  demographics. initial  mri sample
+```{r}
+outdir.mega.tables = file.path(outdir, "tables")
+load( "/ess/p274/cluster/projects/p039_image_brain/data_normative_long/df_mri/all/df.all.filt.Rda")
+load(file.path(wd,"mega","apoe", "output","APOE_merged.rda"))
+merged_apoe_sub = merged_apoe %>% select(rid, apoe4, apoe_status)
+df = left_join(df.merge, merged_apoe_sub)
+ 
+
+df = 
+  df %>% 
+  group_by(rid) %>% 
+  mutate(Obs = n()) %>% 
+  filter(!dataset %in% c("ucam", "wayne"))
+
+df.sub = df %>% 
+  group_by(rid) %>% 
+    summarise(n = first(Obs),
+              sex = first(sex), 
+              apoe_status = first(apoe_status, na_rm = T),
+              xage = mean(age),
+              time = max(age) - min(age), 
+              dataset = first(dataset)) 
+
+dat = 
+    df.sub %>% 
+    group_by(dataset) %>% 
+    summarise(Subs = n(),
+              sex = sum(sex), 
+              apoeNA = sum(is.na(apoe_status)),
+              apoe0 = sum(apoe_status == 0, na.rm = T),
+              apoe1 = sum(apoe_status == 1, na.rm = T),
+              xage.mean = mean(xage),
+              xage.sd = sd(xage) , 
+              xage.min =min(xage), 
+              xage.max = max(xage),
+              Obs.brain = sum(n), 
+              Obs.brain.mean = mean(n), 
+              Obs.brain.sd = sd(n), 
+              Obs.brain.min = min(n), 
+              Obs.brain.max = max(n), 
+              time.brain.mean = mean(time), 
+              time.brain.sd = sd(time), 
+              time.brain.min = min(time), 
+              time.brain.max = max(time), 
+              .groups = 'drop') %>% 
+    bind_rows(
+      df.sub %>% 
+        ungroup() %>% 
+        summarise(dataset = "all", 
+                  Subs = n(),
+                  sex = sum(sex), 
+                  apoeNA = sum(is.na(apoe_status)),
+                  apoe0 = sum(apoe_status == 0, na.rm = T),
+                  apoe1 = sum(apoe_status == 1, na.rm = T),
+                  xage.mean = mean(xage),
+                  xage.sd = sd(xage) , 
+                  xage.min =min(xage), 
+                  xage.max = max(xage),
+                  Obs.brain = sum(n), 
+                  Obs.brain.mean = mean(n), 
+                  Obs.brain.sd = sd(n), 
+                  Obs.brain.min = min(n), 
+                  Obs.brain.max = max(n), 
+                  time.brain.mean = mean(time), 
+                  time.brain.sd = sd(time), 
+                  time.brain.min = min(time), 
+                  time.brain.max = max(time)))
+
+
+kat = kable_2_table(dat, bold = "last", digit = 3)
+writeLines(kat, file.path(outdir.mega.tables, "S1table_demographics_initial_mri_sample.html"))
+kat = kable_2_table(dat, bold = "last", digit = 1)
+writeLines(kat, file.path(outdir.mega.tables, "S1table_demographics_initial_mri_sample2.html"))
+```
+
+# S Table2. main  demographics. initial  cognition sample
+```{r}
+outdir.mega.tables = file.path(outdir, "tables")
+load(file.path(wd, "df.memory_merged_full.rda"))
+load(file.path(wd,"mega","apoe", "output","APOE_merged.rda"))
+merged_apoe_sub = merged_apoe %>% select(rid, apoe4, apoe_status)
+df = left_join(memory.merge.full, merged_apoe_sub)
+ 
+
+df = 
+  df %>% 
+  group_by(rid) %>% 
+  mutate(Obs = n()) %>% 
+  filter(!dataset == "ucam")
+
+tardf.sub = df %>% 
+  group_by(rid) %>% 
+    summarise(n = first(Obs),
+              sex = first(sex), 
+              apoe_status = first(apoe_status, na_rm = T),
+              xage = mean(age),
+              time = max(age) - min(age), 
+              dataset = first(dataset)) 
+
+dat = 
+    df.sub %>% 
+    group_by(dataset) %>% 
+    summarise(Subs = n(),
+              sex = sum(sex), 
+              apoeNA = sum(is.na(apoe_status)),
+              apoe0 = sum(apoe_status == 0, na.rm = T),
+              apoe1 = sum(apoe_status == 1, na.rm = T),
+              xage.mean = mean(xage),
+              xage.sd = sd(xage) , 
+              xage.min =min(xage), 
+              xage.max = max(xage),
+              Obs.mem = sum(n), 
+              Obs.mem.mean = mean(n), 
+              Obs.mem.sd = sd(n), 
+              Obs.mem.min = min(n), 
+              Obs.mem.max = max(n), 
+              time.mem.mean = mean(time), 
+              time.mem.sd = sd(time), 
+              time.mem.min = min(time), 
+              time.mem.max = max(time), 
+              .groups = 'drop') %>% 
+    bind_rows(
+      df.sub %>% 
+        ungroup() %>% 
+        summarise(dataset = "all", 
+                  Subs = n(),
+                  sex = sum(sex), 
+                  apoeNA = sum(is.na(apoe_status)),
+                  apoe0 = sum(apoe_status == 0, na.rm = T),
+                  apoe1 = sum(apoe_status == 1, na.rm = T),
+                  xage.mean = mean(xage),
+                  xage.sd = sd(xage) , 
+                  xage.min =min(xage), 
+                  xage.max = max(xage),
+                  Obs.mem = sum(n), 
+                  Obs.mem.mean = mean(n), 
+                  Obs.mem.sd = sd(n), 
+                  Obs.mem.min = min(n), 
+                  Obs.mem.max = max(n), 
+                  time.mem.mean = mean(time), 
+                  time.mem.sd = sd(time), 
+                  time.mem.min = min(time), 
+                  time.mem.max = max(time)))
+
+
+kat = kable_2_table(dat, bold = "last", digit = 3)
+writeLines(kat, file.path(outdir.mega.tables, "S2table_demographics_initial_mem_sample.html"))
+kat = kable_2_table(dat, bold = "last", digit = 1)
+writeLines(kat, file.path(outdir.mega.tables, "S2table_demographics_initial_mem_sample2.html"))
+```
+# S Table3. Clustering + dimensionality
+```{r}
+  outdir.mega.tables = file.path(outdir, "tables")
+  load(file.path(wd,"mega","consensus_cluster", "cluster_mod.rda"))
+  annon <- m3c$mod$realdataresults[[8]]$ordered_annotation
+  annon$features = gsub("\\.","-",rownames(annon))
+  annon$ccf = as.factor(annon$consensuscluster)
+  annon = annon %>% 
+    mutate(label = if_else(features == "Left-Inf-Lat-Vent", "Left-Lateral-Ventricle", features))
+  
+  #
+  load(file.path(wd,"mega","PCA" ,"pca_result.rda"))
+  df.loading = data.frame(features = rownames(pca_result$rotation), 
+                          loading1 = -pca_result$rotation[,1], 
+                          loading2 = -pca_result$rotation[,2], 
+                          loading3 = -pca_result$rotation[,3], 
+                          loading4 = -pca_result$rotation[,4])
+  
+  
+  
+  df.changenames = retrieve_orig2plot_names()
+  df.loading = 
+    df.loading %>% arrange(desc(loading1)) %>% 
+    mutate(id = 1:nrow(.) %>% as.factor())
+  
+  dat = inner_join(df.loading, annon)
+  (kat = dat %>% kable(digits = 3) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = F))
+  writeLines(kat, file.path(outdir.mega.tables , "S3table_dim.loads.html"))
+```
+
+
+# S Table4. regional contributions
+```{r}
+  outdir.mega.tables = file.path(outdir, "tables")
+  
+
+df.basic =retrieve_pboot_cc(wd, type = "basic") %>% 
+  mutate(type = "basic")
+df.pca =retrieve_pboot_cc(wd, type = "pca") %>% 
+  mutate(type = "pca")
+df.cl1 =retrieve_pboot_cc(wd, type = "cl1")%>% 
+  mutate(type = "cl1")
+
+
+df.cluster = 
+  reduce(list(df.basic, 
+            df.pca, 
+            df.cl1), 
+       rbind) %>% 
+  dplyr::select(-pval) %>% 
+  pivot_wider(names_from = "type", 
+              values_from = "pboot")
+
+  
+  (kat = dat %>% kable(digits = 3) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = F))
+  writeLines(kat, file.path(outdir.mega.tables , "S4cluster.results.html"))
+```
+
+# SUPPLEMENTARY FIGURES
+# S Fig.1 age distribution
+```{r}
+outdir.mega.SFigs = file.path(outdir, "SFigs")
+load(file.path(wd, "merged_reliability.rda"))
+df = 
+  df.merged %>% 
+  filter(features == "Left-Hippocampus") %>%  
+  unnest()
+
+gs = 
+ggplot(df, aes(x = age, y = dataset, fill = 0.5 - abs(0.5 - after_stat(ecdf)), group = dataset)) +
+  stat_density_ridges(geom = "density_ridges_gradient", calc_ecdf = TRUE, bandwidth = 2,
+                      jittered_points = TRUE, position = "raincloud", point_alpha = .6, point_fill = "#1F77B4", point_color = "black", point_shape = 21) +
+  scale_fill_viridis_c(name = "", direction = -1) +
+ # scale_discrete_manual(aesthetics = "point_shape", values = c(18)) +
+  theme_ridges() +
+  theme(legend.position = "none") + 
+  labs(y = "Age") +
+  theme_minimal(base_size = 16) +
+  theme(
+    text = element_text(family = "Arial", face =  "bold"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.line = element_line(color = "black", size = 1),
+    axis.text.x = element_text(size = 18, family = "Arial", color = "black"),
+    axis.text.y = element_text(size = 18, family = "Arial", color = "black"),
+    axis.title.x = element_text(size = 20, family = "Arial", color = "black"),
+    axis.title.y = element_blank(),
+    plot.title = element_text(size = 24, face = "bold", family = "Arial", hjust = 0.5),
+    legend.position = "none"  # Hide legend in individual plot
+  ) 
+
+ggsave(file.path(outdir.mega.SFigs, "SFig1.AgedistributionSample.jpeg"), plot = gs, width = 8, height = 10)
+```
+
+# S Fig.3. M3c extra figures
+```{r}
+outdir.mega.SFigs = file.path(outdir, "SFigs")
+load(file.path(wd,"mega","consensus_cluster", "cluster_mod.rda"))
+gs1 = m3c$mod$plots[[1]]
+gs2 = m3c$mod$plots[[2]]
+gs3 = m3c$mod$plots[[3]]
+gs4 = m3c$mod$plots[[4]]
+
+
+gs1 = 
+gs1 + labs(x = "Consensus Index", 
+           colour = "K") + 
+  theme_classic() +
+  theme(legend.position = "right", 
+        text = element_text(family = "Arial", face =  "bold"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(color = "black", size = 1),
+        axis.text.x = element_text(size = 18, family = "Arial", color = "black"),
+        axis.text.y = element_text(size = 18, family = "Arial", color = "black"),
+        axis.title = element_text(size = 20, family = "Arial", color = "black"),
+        legend.title = element_text(size = 18),
+        legend.text = element_text(size = 14),
+        plot.title = element_blank()) + 
+   guides(color = guide_legend(keywidth = 3, keyheight = 1))
+
+gs2 = 
+  gs2+ 
+  theme_classic() +
+  theme(legend.position = "bottom", 
+        text = element_text(family = "Arial", face =  "bold"),
+        axis.line = element_line(color = "black", size = 1),
+        axis.text.x = element_text(size = 18, family = "Arial", color = "black"),
+        axis.text.y = element_text(size = 18, family = "Arial", color = "black"),
+        axis.title = element_text(size = 20, family = "Arial", color = "black"),
+        legend.title = element_text(size = 18),
+        legend.text = element_text(size = 14),
+        plot.title = element_blank())
+
+gs3 = 
+  gs3+ 
+  theme_classic() +
+  theme(legend.position = "bottom", 
+        text = element_text(family = "Arial", face =  "bold"),
+        axis.line = element_line(color = "black", size = 1),
+        axis.text.x = element_text(size = 18, family = "Arial", color = "black"),
+        axis.text.y = element_text(size = 18, family = "Arial", color = "black"),
+        axis.title = element_text(size = 20, family = "Arial", color = "black"),
+        legend.title = element_text(size = 18),
+        legend.text = element_text(size = 14),
+        plot.title = element_blank())
+
+
+
+gs4 = 
+  gs4+ 
+  theme_classic() +
+  theme(legend.position = "bottom", 
+        text = element_text(family = "Arial", face =  "bold"),
+        axis.line = element_line(color = "black", size = 1),
+        axis.text.x = element_text(size = 18, family = "Arial", color = "black"),
+        axis.text.y = element_text(size = 18, family = "Arial", color = "black"),
+        axis.title = element_text(size = 20, family = "Arial", color = "black"),
+        legend.title = element_text(size = 18),
+        legend.text = element_text(size = 14),
+        plot.title = element_blank())
+
+
+gs = gs1 / (gs2 + gs3 + gs4)
+ggsave(file.path(outdir.mega.SFigs, "SFig3.cluster.jpeg"), plot = gs, width = 9, height = 12)
+
+```
+
+
+# DEPRECATED
+#### apoe table
+```{r}
+load(file.path(wd,"mega","apoe", "output" ,"APOE_merged.rda"))
+
+#TABLE
+summary_table <- merged_apoe %>%
+  filter(!dataset == "ucam") %>% 
+  group_by(dataset) %>%
+  summarize(
+    APOE_data = sum(!is.na(apoe_status)),  # Count non-NA values
+    APOE_na = sum(is.na(apoe_status)),     # Count NA values
+    carriers = sum(apoe_status == 1, na.rm = TRUE),  # Count where apoe_status is 1 (carriers)
+    non_carriers = sum(apoe_status == 0, na.rm = TRUE)  # Count where apoe_status is 0 (non-carriers)
+  ) %>%
+  ungroup()  # Remove the grouping
+
+# Add a total summary row
+total_summary <- summary_table %>%
+  filter(!dataset == "ucam") %>% 
+  summarize(
+    dataset = "TOTAL",
+    APOE_data = sum(APOE_data),
+    APOE_na = sum(APOE_na),
+    carriers = sum(carriers),
+    non_carriers = sum(non_carriers)
+  )
+
+# Combine dataset summaries with the total summary
+final_table <- bind_rows(summary_table, total_summary)
+(kabapoe = 
+  kable(final_table, digits = 3, caption = "apoe overview") %>% 
+  kable_styling(bootstrap_options = "striped", full_width = F))
+
+save(final_table,
+     kabapoe,
+     file = file.path(wd,"mega","apoe", "output", "APOE_overview.rda"))
+
+```
+
+
+# S5. memory scores
+```{r}
+load(file.path(wd, "df.memory_merged_full.rda"))
+memory.merge.full = 
+  memory.merge.full %>% 
+  filter(!dataset == "ucam")
+gs = ggplot(memory.merge.full, aes(age, PCA, color= dataset)) + 
+  geom_point() + 
+  geom_smooth(color = "black", size = 2) +
+  theme_classic()  + 
+  facet_wrap(.~dataset, ncol = 3, scales = "free_y")  +
+  theme(legend.position = "none", 
+        text = element_text(family = "Arial", face =  "bold"),
+        axis.line = element_line(color = "black", size = 1),
+        axis.text.x = element_text(size = 18, family = "Arial", color = "black"),
+        axis.text.y = element_text(size = 18, family = "Arial", color = "black"),
+        axis.title = element_text(size = 20, family = "Arial", color = "black"),
+        strip.text = element_text(size = 18, family = "Arial", color = "black"),
+        strip.background = element_blank(), 
+        plot.title = element_blank())
+ggsave(file.path(outdir.mega.SFigs, "SFig5.memory.jpeg"), plot = gs, width = 10, height = 10)
+
+```

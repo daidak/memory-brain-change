@@ -1,0 +1,75 @@
+---
+title: "Memory"
+author: "MS"
+date: "3/30/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+library(gamm4)
+library(itsadug)
+library(here)
+library(rio)
+library(tidyverse)
+
+source(here("scripts/memory_long_scripts/4_memorychange_functions.R"))
+```
+
+
+### compute memory change
+## run gamms, extract intercept and slope values
+```{r compute memory change}
+set_links("uio")
+memory.uio("uio")
+
+#umu
+set_links("umu")
+memory.umu("umu")
+
+#ub#
+set_links("ub")
+memory.ub("ub")
+
+#mpib
+set_links("mpib")
+memory.mpib("mpib")
+
+#adni
+set_links("adni")
+memory.adni("adni")
+
+#aibl
+set_links("aibl")
+memory.aibl("aibl")
+
+#ous
+set_links("ous")
+memory.ous("ous")
+
+#ukb
+set_links("ukb")
+memory.ukb("ukb")
+
+#habs
+set_links("habs")
+memory.habs("habs")
+
+#preventad
+set_links("preventad")
+memory.preventad("preventad")
+
+#oasis3
+set_links("oasis3")
+memory.oasis3("oasis3")
+
+#bbhi
+set_links("bbhi")
+memory.bbhi("bbhi")
+
+#vetsa
+set_links("vetsa")
+memory.vetsa("vetsa")
+```

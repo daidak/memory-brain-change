@@ -1,0 +1,486 @@
+---
+title: "postproc_MetaMega"
+author: "MS"
+date: '2023-08-30'
+output: html_document
+---
+
+#LOAD LIB
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(here)
+library(tidyverse)
+library(sn)
+
+options(bitmapType='cairo')
+
+wd = here("data_memory_long/all")
+mridir=here('data_normative_long/df_mri/all')
+reliabilitydir = file.path(mridir, "reliability")
+source(here("scripts/memory_long_scripts/6_analyses_functions.R"))
+```
+
+# 0. Prepare data
+
+```{r merge data}
+# fetch brain data and merged it with basic sociodemographics
+df.mri.change = wrapper_merge_mri_data(wd)
+merged = wrapper_merge_mem_with_mri_data(wd)
+merged = merge_apoe(wd)
+df.merged = wrapper_merge_reliability (wd, reliabilitydir) # merged.reliability.rda (main data.frame of reference)
+```
+
+# 1. MEGA - slope
+
+## sbatch main and age interaction
+
+```{r}
+scriptname = here("scripts/memory_long_scripts/sbatch_scripts/submit_run_mega.sh")
+wd = here("data_memory_long/all")
+load(file.path(wd, "merged_reliability.rda"))
+df.merged = remove.vars(df.merged)
+feature = unique(df.merged$features)
+
+for (i in 1:length(feature)) {
+  #i = 1
+   system(paste(
+      "module purge;",
+      "sbatch",
+       scriptname, 
+       feature[i],
+       wd,
+       sep = " ")) 
+}
+```
+
+## Merge regions
+
+```{r}
+temp_folder = here("data_memory_long/all/mega/temp_models")
+mylist = list.files(temp_folder, pattern = ".Rda")
+mylist = mylist[!grepl("^models_", mylist)]
+grot = list()
+for (i in 1:length(mylist)) {
+  fileee <- file.path(temp_folder, mylist[i])
+  load(fileee)
+  grot[[i]] = xx
+}
+
+df.mega.output = data.table::rbindlist(grot)
+
+p.correct = c("lme.w_pval",
+              "lme.slopes.w_pval", 
+              "gamm.w.pval", 
+              "gamm.w.pval.bootstrap",
+              "gamm.int.w.pval",
+              "gamm.int.w.pval.bootstrap")
+
+p.direction = 
+  tribble(~p.value, ~estimate, 
+        "lme.w_pval", "lme.w_beta",
+        "lme.slopes.w_pval", "lme.slopes.w_beta")
+
+vars_sign = c("lme_beta", 
+              "lme.w_beta",
+              "lme.w_beta.ctrlicv",
+              "lme.w_beta.ctrlicvage",
+              "lme.slopes.w_beta")
+
+mega = prepare_df2(df.mega.output, p.correct, p.direction, vars_sign)
+
+vars.infinite =  names(mega)[grep("log", names(mega))]
+mega = change_infinite_values(mega, vars.infinite, 5000)
+
+save(mega,
+       file = file.path(wd,"mega", "df.mega.rda"))
+```
+
+## make plots for gamm models
+
+```{r, warning=F, echo =F}
+mega_plots_and_derivatives(wd)
+```
+
+## get estimates and derivatives
+
+```{r}
+# load mega data
+load(file.path(wd,"mega", "df.mega.rda"))
+dt.predictions = wrapper_get_predictions_derivative(wd) 
+dt.predictions = data.table::rbindlist(dt.predictions)
+mega = left_join(mega, dt.predictions)    
+mega = wrapper_get_estimates(mega)  
+dt.estimates = wrapper_draw_smooth(mega)
+dt.estimates = data.table::rbindlist(dt.estimates)
+mega = left_join(mega, dt.estimates)    
+save(mega, file =file.path(wd,"mega", "df.mega.rda"))
+```
+
+# 2. Hemispheric differences (mega)
+
+```{r}
+hemi.diff = wrapper_hemispheric_differences(wd)
+```
+
+# 3. Global or regional (mega)
+
+## Consensus Clustering + PCA
+
+```{r}
+m3c = wrapper_clustering(wd)
+pca_result = wrapper_pca(wd)
+
+## extra analysis
+scriptname = here("scripts/memory_long_scripts/sbatch_scripts/submit_run_consensuscluster_extra.sh")
+types = c("all", "pca", "cl1", "basic")
+for (i in 1:length(types)) {
+  #i = 1
+   system(paste(
+      "module purge;",
+      "sbatch",
+       scriptname, 
+       types[i],
+       wd,
+       sep = " ")) 
+}
+
+df.basic =retrieve_pboot_cc(wd, type = "basic")
+df.pca =retrieve_pboot_cc(wd, type = "pca")
+df.cl1 =retrieve_pboot_cc(wd, type = "cl1")
+df.clall =retrieve_pboot_cc(wd, type = "all")
+dt.basic1 = wrapper_get_weights_cc_analysis(wd, type = "basic")
+dt.pca1 = wrapper_get_weights_cc_analysis(wd, type = "pca")
+dt.cl11 = wrapper_get_weights_cc_analysis(wd, type = "cl1")
+dt.clall1 = wrapper_get_weights_cc_analysis(wd, type = "all")
+
+save(df.basic, 
+     df.pca, 
+     df.cl1, 
+     df.clall, 
+     dt.basic1, 
+     dt.pca1, 
+     dt.cl11, 
+     dt.clall1, 
+     file = file.path(wd,"mega","consensus_cluster","mod.results.rda"))
+```
+
+# 4. APOE (mega)
+
+## sbatch apoe memory only and brain only
+
+```{r}
+wd = here("data_memory_long/all")
+# run memory - apoe 
+scriptname = here("scripts/memory_long_scripts/sbatch_scripts/submit_run_apoe_memory.sh")
+system(paste(
+      "module purge;",
+      "sbatch",
+       scriptname, 
+       file.path(wd),
+       sep = " ")) 
+
+# run brain - apoe
+scriptname = here("scripts/memory_long_scripts/sbatch_scripts/submit_run_apoe_brain.sh")
+load(file.path(wd, "merged_reliability.rda"))
+df.merged = remove.vars(df.merged)
+feature = unique(df.merged$features)
+
+for (i in 1:length(feature)) {
+   system(paste(
+      "module purge;",
+      "sbatch",
+       scriptname, 
+       feature[i],
+       wd,
+       sep = " ")) 
+}
+```
+
+## sbatch apoe - associations
+
+```{r }
+scriptname = here("scripts/memory_long_scripts/sbatch_scripts/submit_run_apoe.sh")
+wd = here("data_memory_long/all")
+load(file.path(wd, "merged_reliability.rda"))
+
+df.merged = remove.vars(df.merged)
+
+feature = unique(df.merged$features)
+
+
+for (i in 1:length(feature)) {
+   system(paste(
+      "module purge;",
+      "sbatch",
+       scriptname, 
+       feature[i],
+       file.path(wd),
+       sep = " ")) 
+}
+```
+
+# 4.1 APOE BRAIN And MEmory only
+
+## merge regions apoe on brain
+
+```{r}
+wd = here('data_memory_long', 'all')
+temp_folder = here("data_memory_long/all/mega/apoe/output/temp_models_mem")
+mylist = list.files(temp_folder, pattern = ".Rda")
+mylist = mylist[!mylist %in% c("models.Rda", "output.Rda")]
+mylist = mylist[!grepl("^models.", mylist)]
+grot = list()
+for (i in 1:length(mylist)) {
+  fileee <- file.path(temp_folder, mylist[i])
+  f = gsub(".Rda", "",mylist[i])
+  load(fileee)
+  output$features = f
+  grot[[i]] = output
+  
+}
+df.mega.apoe.brain = data.table::rbindlist(grot, fill=T)
+
+p.correct = c("lme.apoe.brain_pval",
+              "gam.apoe.brain_agep",
+              "gam.apoe.brain_agep.boot")
+ 
+p.direction =
+  tribble(~p.value, ~estimate,
+        "lme.apoe.brain_pval", "lme.apoe.brain_beta")
+
+mega.apoe.brain = prepare_df2(df.mega.apoe.brain, p.correct, p.direction, vars_sign=c())
+
+save(mega.apoe.brain,
+       file = file.path(wd,"mega","apoe", "df.mega.apoe.brain.rda"))
+
+#age_plot_apoe_brain()
+```
+
+# 4.2 APOE -BRAIN memorya ssociations
+
+## Merge regions (apoe)
+
+```{r}
+wd = here('data_memory_long', 'all')
+temp_folder = here("data_memory_long/all/mega/apoe/output/temp_models")
+mylist = list.files(temp_folder, pattern = ".Rda")
+mylist = mylist[!grepl("^models_", mylist)]
+grot = list()
+for (i in 1:length(mylist)) {
+  fileee <- file.path(temp_folder, mylist[i])
+  load(fileee)
+  grot[[i]] = output
+}
+df.mega.apoe = data.table::rbindlist(grot, fill=T)
+
+p.correct = c("lme.apoe.memory_pval",
+              "lme.apoe.brain_pval",
+              "lme.apoe_pval", 
+              "gam.int.w.apoe0p", 
+              "gam.int.w.apoe1p", 
+              "gam.main.w.apoeOp", 
+              "gam.main.w.apoe1p",
+              "gam.int.w.apoeOp", 
+              "gam.main.w.apoeOp",
+              "gam.int.w.apoeOp.bootstrap",
+              "gam.main.w.apoeOp.bootstrap",
+              "gam.main.w.apoe0p.bootstrap",
+              "gam.main.w.apoe1p.bootstrap",
+              "gam.int.w.apoe0p.bootstrap",
+              "gam.int.w.apoe1p.bootstrap")
+ 
+p.direction =
+  tribble(~p.value, ~estimate,
+        "lme.apoe.memory_pval", "lme.apoe.memory_beta",
+        "lme.apoe.brain_pval", "lme.apoe.brain_pval",
+        "lme.apoe_pval", "lme.apoe_beta")
+
+mega.apoe = prepare_df2(df.mega.apoe, p.correct, p.direction, vars_sign=c())
+
+save(mega.apoe,
+       file = file.path(wd,"mega","apoe", "df.mega.apoe.rda"))
+```
+
+## apoe plots
+
+```{r apoe plots}
+apoe_plots(wd)    
+```
+
+## get predictions and other stuff
+
+```{r}
+load(file.path(wd,"mega","apoe", "df.mega.apoe.rda"))
+dt.predictions = wrapper_get_predictions_derivative.apoe(wd) 
+dt.predictions = data.table::rbindlist(dt.predictions)
+mega.apoe = left_join(mega.apoe, dt.predictions)    
+mega.apoe = wrapper_get_estimates_apoe(mega.apoe) 
+dt.estimates = wrapper_draw_smooth_apoe(mega.apoe)
+dt.estimates = data.table::rbindlist(dt.estimates)
+mega.apoe = left_join(mega.apoe, dt.estimates)       
+save(mega.apoe, file =file.path(wd,"mega","apoe", "df.mega.apoe.rda"))
+```
+
+### compare apoe - main (SI)
+
+```{r}
+load(file =file.path(wd,"mega", "df.mega.rda"))
+load(file.path(wd,"mega","apoe", "df.mega.apoe.rda"))
+
+features = mega$features
+
+grot = list()
+for (i in 1:length(features)) {
+  print(i)
+  X = mega %>% filter(features == features[[i]]) %>% .$datamainsmooth %>% .[[1]]
+  ss = mega.apoe %>% filter(features == features[[i]]) %>%  .$data.predict.main.apoeO %>% .[[1]] %>% filter(is.na(apoe_statusO))
+  
+  X$estimate.apoe0 = approx(ss$delta_brain, ss$.estimate, xout = X$delta_brain)$y
+  grot[[i]]  = 
+    X %>% 
+    rowwise() %>% 
+    mutate(is.equal = between(estimate.apoe0, .estimate - 1.96*.se, .estimate + 1.96*.se), 
+           features = features[[i]]) %>% 
+    group_by(features) %>% 
+    nest()
+}
+
+df.grot = data.table::rbindlist(grot)
+
+x = df.grot %>% unnest() 
+table(x$is.equal, useNA = "always")
+xx = x %>% filter(!is.equal == 1)
+#100 - 100*66/(116459+66)
+
+sig.features = mega %>% filter(gamm.w.pval.bootstrap.fdr  < .05) %>% .$features
+sig.features.apoe0 = mega.apoe %>% filter(gam.main.w.apoe0p.bootstrap < .05) %>% .$features
+setdiff(sig.features, sig.features.apoe0)
+```
+
+### compare apoe - interaction (SI)
+
+```{r}
+load(file =file.path(wd,"mega", "df.mega.rda"))
+load(file.path(wd,"mega","apoe", "df.mega.apoe.rda"))
+
+features = mega$features
+
+grot = list()
+for (i in 1:length(features)) {
+  print(i)
+  X = mega %>% filter(features == features[[i]]) %>% .$datainteractionsmooth %>% .[[1]]
+  ss = mega.apoe %>% filter(features == features[[i]]) %>%  .$data.predict.int.apoeO %>% .[[1]] %>% filter(apoe_statusO == 0)
+  
+  ages = c(40,50,60,70,80)
+  X = X %>% filter(xage %in% ages) %>% 
+    group_by(xage) %>% 
+    nest()
+  ss = ss %>% filter(xage %in% ages) %>% 
+    group_by(xage) %>% 
+    nest() %>% 
+    rename(data.apoe = data)
+  X = left_join(X, ss)
+  X = 
+    X %>% 
+    mutate(data = 
+             map2(data, data.apoe, ~ mutate(.x, estimate.apoe = approx(.y$delta_brain, .y$estimate, xout = .x$delta_brain)$y)))
+ 
+  X = X %>% select(xage, data) %>% unnest()
+  
+  grot[[i]]  = 
+    X %>% 
+    rowwise() %>% 
+    mutate(is.equal = between(estimate.apoe, estimate - 1.96*se, estimate + 1.96*se), 
+           features = features[[i]]) %>% 
+    group_by(features) %>% 
+    nest()
+}
+
+df.grot = data.table::rbindlist(grot)
+
+x = df.grot %>% unnest() 
+table(x$is.equal, useNA = "always")
+xx = x %>% filter(!is.equal == 1)
+#100*1363/(16067+1363)
+
+sig.features = mega %>% filter(gamm.int.w.pval.bootstrap.fdr  < .05) %>% .$features
+sig.features.apoe0 = mega.apoe %>% filter(gam.int.w.apoe0p.bootstrap < .05) %>% .$features
+setdiff(sig.features, sig.features.apoe0)
+```
+
+# 5 Simulation.
+
+```{r simulation}
+outdir = file.path(wd, "mega", "report")
+outdir.mega.simulation = file.path(outdir, "simulation")
+set.seed(1234)
+
+mini.grid = 
+  expand.grid(n = 3700, 
+              x1 = seq(-1.2, -.2, by= .4), 
+              sd1 = seq(.6,1.8, by = .6), 
+              skew1 = -5,
+              sd2 = .8, 
+              r = .3,
+              ysd = .8)
+
+
+out.mg = out.dataset.mg = df.tidy.mg = smt.model.mg = smt.aging.mg = list()
+for(i in 1:nrow(mini.grid)) {
+  print(i)
+  out.mg[[i]] = replicate(1000, model_twoModel_discussion(mini.grid$n[[i]], mini.grid$x1[[i]], mini.grid$sd1[[i]], mini.grid$skew1[[i]], mini.grid$sd2[[i]], mini.grid$r[[i]], mini.grid$ysd[[i]]), simplify = F)
+  out.dataset.mg[[i]] = twoModel_distribution_example(100000, mini.grid$x1[[i]], mini.grid$sd1[[i]], mini.grid$skew1[[i]], mini.grid$sd2[[i]], mini.grid$r[[i]], mini.grid$ysd[[i]])
+  df.tidy.mg[[i]] = tidy_stats(out.mg[[i]])
+  smt.model.mg[[i]] = get_mean_smooths(out.mg[[i]], smooth = "model")
+  smt.aging.mg[[i]] = get_mean_smooths(out.mg[[i]], smooth = "aging")
+  
+}
+
+
+mini.grid= mini.grid %>% 
+  mutate(out = out.mg, 
+         out.dataset = out.dataset.mg, 
+         df.tidy = df.tidy.mg, 
+         smt.model = smt.model.mg, 
+         smt.aging = smt.aging.mg)
+
+save(mini.grid, 
+     file =  file.path(outdir.mega.simulation, "modelling.rda"))
+
+
+skew.grid = 
+  expand.grid(n = 3700, 
+              x1 = -.8, 
+              sd_target = .748, # approximate sd for main simulation
+              skew1 = c(-2,-5, -20),
+              sd2 = .8, 
+              r = .3,
+              ysd = .8)
+
+
+
+out.mg = out.dataset.mg = df.tidy.mg = smt.model.mg = smt.aging.mg = list()
+for(i in 1:nrow(skew.grid)) {
+  print(i)
+  skew.grid$sd1[i] = adjust_omega(skew.grid$skew1[i], skew.grid$sd_target[i])
+  out.mg[[i]] = replicate(1000, model_twoModel_discussion(skew.grid$n[[i]], skew.grid$x1[[i]], skew.grid$sd1[[i]], skew.grid$skew1[[i]], skew.grid$sd2[[i]], skew.grid$r[[i]], skew.grid$ysd[[i]]), simplify = F)
+  out.dataset.mg[[i]] = twoModel_distribution_example(100000, skew.grid$x1[[i]], skew.grid$sd1[[i]], skew.grid$skew1[[i]], skew.grid$sd2[[i]], skew.grid$r[[i]], skew.grid$ysd[[i]])
+  df.tidy.mg[[i]] = tidy_stats(out.mg[[i]])
+  smt.model.mg[[i]] = get_mean_smooths(out.mg[[i]], smooth = "model")
+  smt.aging.mg[[i]] = get_mean_smooths(out.mg[[i]], smooth = "aging")
+  
+}
+
+
+skew.grid= skew.grid %>% 
+  mutate(out = out.mg, 
+         out.dataset = out.dataset.mg, 
+         df.tidy = df.tidy.mg, 
+         smt.model = smt.model.mg, 
+         smt.aging = smt.aging.mg)
+
+save(skew.grid, file = file.path(outdir.mega.simulation, "skewgrid.rda"))
+```
+

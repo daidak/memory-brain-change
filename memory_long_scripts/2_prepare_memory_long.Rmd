@@ -1,0 +1,154 @@
+---
+title: "Prepare memory long"
+author: "MS"
+date: "3/28/2023"
+output: html_document
+---
+
+# Rename and harmonize common variables in each dataset, extract relevant memory variables
+### This script will..
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(here)
+library(rio)
+#library(readr)
+
+#here()
+source(here("scripts/memory_long_scripts/2_prepare_functions.R"))
+
+dir = here("data_memory_long/all")
+
+df.mri = import(file.path(dir, 'df.mri.rda'))
+
+#harmonization file cognition
+df.harmonize_cog = import(file.path(dir, 'harmonize_cogn.xlsx'))
+#harmonization file mri
+#df.harmonize_mri = import(file.path(dir, 'harmonize_mri.xlsx'))
+#sex rename (same in cog and mri files)
+sex.rename = import(file.path(dir, 'harmonize_cogn.xlsx'), sheet = "sex") 
+```
+
+## Harmonize mri and memory variables, and extract relevant memory variables 
+### UiO
+```{r LCBC}
+## set up links
+set_links("uio")
+
+# rename variables, outputs mri df, memory df, otherdata df
+prepare.uio("uio")
+```
+
+### umu
+```{r Umu_Betula}
+## set up links  
+set_links("umu")
+
+# rename variables, outputs mri df, memory df, otherdata df
+prepare.umu("umu")
+
+
+```
+
+###ub.
+```{r UB}
+## set up links  
+set_links("ub")
+
+# rename variables, outputs mri df, memory df, otherdata df
+prepare.ub("ub")
+```
+
+### mpib 
+```{r MPIB}
+## set up links  
+set_links("mpib")
+
+# rename variables, outputs mri df, memory df, otherdata df
+prepare.mpib("mpib")
+```
+
+```{r CamCan, warning=F}
+## set up links 
+set_links("ucam")
+
+# rename variables, outputs mri df, memory df, otherdata df
+prepare.ucam("ucam")
+```
+
+### adni.
+```{r adni}
+set_links("adni")
+
+# rename variables, outputs mri df, memory df, otherdata df
+prepare.adni("adni")
+```
+
+### aibl.
+```{r aibl}
+set_links("aibl")
+
+# rename variables, outputs mri df, memory df, otherdata df
+prepare.aibl("aibl")
+```
+
+
+### habs.
+```{r habs}
+## set up links  
+set_links("habs")
+
+# rename variables, outputs mri df, memory df, otherdata df
+prepare.habs("habs")
+```
+
+### cognorm / ous
+```{r cognorm / ous}
+set_links("ous")
+
+# rename variables, outputs mri df, memory df, otherdata df
+prepare.ous("ous")
+```
+
+
+### preventAD.
+```{r preventAD}
+set_links("preventad")
+
+# rename variables, outputs mri df, memory df, otherdata df
+prepare.preventad("preventad")
+```
+
+
+### ukb
+```{r ukb}
+set_links("ukb")
+
+# rename variables, outputs mri df, memory df, otherdata df
+prepare.ukb("ukb")
+
+```
+
+### oasis.
+```{r oasis3}
+set_links("oasis3")
+
+# rename variables, outputs mri df, memory df, otherdata df
+prepare.oasis3("oasis3")
+```
+
+### bbhi.
+```{r bbhi}
+set_links("bbhi")
+
+# rename variables, outputs mri df, memory df, otherdata df
+prepare.bbhi("bbhi")
+```
+
+### vetsa.
+```{r bbhi}
+set_links("vetsa")
+
+# rename variables, outputs mri df, memory df, otherdata df
+prepare.vetsa("vetsa")
+```

@@ -1,0 +1,140 @@
+---
+title: "extract_data"
+author: "MS- DVP"
+date: "19/04/2022"
+output: html_document
+---
+  
+# Fetch memory data, and link with main data.files
+### This script will populate rawdatafiles with 1) csv file linking available mri data with existing tables; 2) will import fs derivatives of interest in the folder
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(here)
+library(rio)
+#library(readr)
+
+#here()
+source(here("scripts/memory_long_scripts/1_extract_functions.R"))
+
+
+```
+
+## This R Markdown will fetch memory data. 
+### Fetch memory data for uio.
+```{r LCBC}
+## set up links
+set_links("uio")
+
+# extract memory data (UPDATE: also non longitudinal data)
+extract.longdata.uio(sitedir, outdir, mrifiles)
+
+
+```
+
+### Fetch memory data for umu
+```{r Umu_Betula}
+## set up links  
+set_links("umu")
+
+# extract memory data (UPDATE: also non longitudinal data)
+extract.longdata.umu(sitedir, outdir, mrifiles)
+
+
+```
+
+### Fetch memory data for ub.
+```{r UB}
+## set up links  
+set_links("ub")
+
+# extract memory data (UPDATE: also non longitudinal data)
+extract.longdata.ub(sitedir, outdir, mrifiles)
+```
+
+### Fetch memory data for mpib 
+```{r MPIB}
+## set up links  
+set_links("mpib")
+
+# extract memory data (UPDATE: also non longitudinal data)
+extract.longdata.mpib(sitedir, outdir, mrifiles)
+```
+
+### Fetch memory data for adni.
+```{r adni}
+set_links("adni")
+
+# extract memory data (UPDATE: also non longitudinal data)
+extract.longdata.adni(sitedir, outdir, mrifiles)
+```
+
+### Fetch memory data for aibl.
+```{r aibl}
+set_links("aibl")
+
+# extract memory data (UPDATE: also non longitudinal data)
+extract.longdata.aibl(sitedir, outdir, mrifiles)
+```
+
+
+### Fetch memory data for habs.
+```{r habs}
+## set up links  
+set_links("habs")
+
+# extract memory data (UPDATE: also non longitudinal data)
+extract.longdata.habs(sitedir, outdir, mrifiles)
+```
+
+### Fetch memory data for cognorm / ous
+```{r cognorm / ous}
+set_links("ous")
+
+# extract memory data (UPDATE: also non longitudinal data)
+extract.longdata.ous(sitedir, outdir, mrifiles)
+```
+
+
+### Fetch memory data for preventAD.
+```{r preventAD}
+set_links("preventad")
+
+# extract memory data (UPDATE: also non longitudinal data)
+extract.longdata.preventad(sitedir, outdir, mrifiles)
+```
+
+
+### Fetch memory data for ukb.
+```{r ukb}
+set_links("ukb")
+
+# extract memory data (UPDATE: also non longitudinal data)
+extract.longdata.ukb(sitedir, outdir)
+```
+
+### Fetch memory data for oasis.
+```{r ukb}
+set_links("oasis3")
+
+# extract memory data (UPDATE: also non longitudinal data)
+extract.longdata.oasis3(sitedir, outdir, mrifiles)
+```
+
+### Fetch memory data for BBHI.
+```{r bbhi}
+## set up links  
+set_links("bbhi")
+
+# extract memory data (UPDATE: also non longitudinal data)
+extract.longdata.bbhi(sitedir, outdir, mrifiles)
+```
+
+### Fetch memory data for vetsa.
+```{r vetsa}
+## set up links  
+set_links("vetsa")
+
+# extract memory data (UPDATE: also non longitudinal data)
+extract.longdata.vetsa(sitedir, outdir, mrifiles)
+```
